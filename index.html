@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Super-Architects | Distributed Systems Learning Game</title>
+  <!-- Google Fonts for premium modern typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app-container">
+    
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="logo-icon">⚡</span>
+        <h1>SUPER-ARCHITECTS</h1>
+        <span class="logo-badge">SYSTEMS SIMULATOR v1.0</span>
+      </div>
+      <div class="header-stats">
+        <div class="header-stat-box">
+          <span class="stat-label">BUDGET</span>
+          <span class="stat-value text-gold" id="stat-credits">$1000</span>
+        </div>
+        <div class="header-stat-box">
+          <span class="stat-label">CITY PANIC LEVEL</span>
+          <div class="panic-meter-container">
+            <div class="panic-meter-fill" id="panic-fill" style="width: 0%;"></div>
+          </div>
+          <span class="stat-value text-red" id="stat-panic">0%</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Area -->
+    <div class="main-layout">
+      
+      <!-- Left Panel: Levels & Missions -->
+      <aside class="panel left-panel">
+        <div class="panel-header">
+          <h2>🗂️ MISSION SELECTOR</h2>
+        </div>
+        <div class="level-selector-container">
+          <select id="level-select">
+            <!-- Populated via JavaScript dynamically -->
+          </select>
+        </div>
+        
+        <div class="panel-body level-briefing">
+          <h3 id="level-title">Mission Briefing</h3>
+          <p id="level-desc" class="briefing-text">Loading instructions...</p>
+          
+          <div class="objective-box">
+            <h4>🎯 OBJECTIVES</h4>
+            <ul id="level-objectives">
+              <!-- Dynamically populated -->
+            </ul>
+          </div>
+
+          <div class="game-controls">
+            <button id="btn-start" class="btn btn-primary">▶ PLAY SIMULATION</button>
+            <button id="btn-pause" class="btn btn-secondary" disabled>⏸ PAUSE</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <button id="btn-restart" class="btn btn-danger">🔄 RESTART</button>
+              <button id="btn-help" class="btn btn-secondary">🎓 GUIDE</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+              <button id="btn-save" class="btn btn-secondary" style="font-size: 10px; padding: 8px 10px;">💾 SAVE GRID</button>
+              <button id="btn-load" class="btn btn-secondary" style="font-size: 10px; padding: 8px 10px;">📂 LOAD GRID</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="resizer" id="resizer-left" title="Drag to resize panel"></div>
+
+      <!-- Center Panel: The Visualizer Canvas -->
+      <main class="canvas-panel">
+        <div class="canvas-header">
+          <span id="simulation-status" class="status-indicator inactive">SIMULATION STOPPED</span>
+          <div class="canvas-tools">
+            <button id="tool-select" class="tool-btn active" title="Select / Upgrade Hero">🔍 Select</button>
+            <button id="tool-wire" class="tool-btn" title="Create Portal Link between towers">🌀 Link Portal</button>
+          </div>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="sim-canvas"></canvas>
+          
+          <!-- Tutorial Overlay or Game Over Screens -->
+          <div id="game-overlay" class="overlay hidden">
+            <div class="overlay-card">
+              <h2 id="overlay-title">SUCCESS!</h2>
+              <p id="overlay-text">Level completed successfully.</p>
+              <button id="overlay-action" class="btn btn-primary">NEXT LEVEL</button>
+            </div>
+          </div>
+
+          <!-- Interactive Tutorial Overlay -->
+          <div id="tutorial-overlay" class="overlay hidden">
+            <div class="overlay-card tutorial-card">
+              <div class="tutorial-header">
+                <span class="tutorial-badge">LEARNING WIZARD</span>
+                <h2 id="tutorial-title">Welcome, Architect!</h2>
+              </div>
+              <p id="tutorial-text" class="tutorial-desc">Ready to study systems? Let's walk through how to navigate, place heroes, and scale infrastructure.</p>
+              <div class="tutorial-footer">
+                <button id="btn-tut-back" class="btn btn-secondary" style="padding: 8px 12px; font-size: 10px;" disabled>⬅ BACK</button>
+                <div class="tutorial-dots" id="tutorial-dots">
+                  <span class="dot active"></span>
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                </div>
+                <button id="btn-tut-next" class="btn btn-primary" style="padding: 8px 12px; font-size: 10px; width: auto;">NEXT ➡</button>
+              </div>
+              <button id="btn-tut-skip" class="btn-tut-skip-link">Skip Tutorial</button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <div class="resizer" id="resizer-right" title="Drag to resize panel"></div>
+
+      <!-- Right Panel: Operations Dashboard -->
+      <aside class="panel right-panel">
+        
+        <!-- Tab Navigation for Right Panel -->
+        <div class="tab-header" style="grid-template-columns: 1fr 1fr 1fr;">
+          <button class="tab-btn active" data-tab="tab-deploy">🛠️ DEPLOY</button>
+          <button class="tab-btn" data-tab="tab-telemetry">📈 TELEMETRY</button>
+          <button class="tab-btn" data-tab="tab-guide">📖 GUIDE</button>
+        </div>
+
+        <div class="tab-content" id="tab-deploy">
+          <!-- Deploy Heroes Panel -->
+          <div class="sub-section">
+            <h3 class="section-title">HERO INVENTORY</h3>
+            <div class="hero-deploy-grid">
+              <button class="deploy-card" data-hero="volt" title="Speedster - Compute Node">
+                <span class="hero-icon">⚡</span>
+                <span class="hero-name">Volt (Speedster)</span>
+                <span class="hero-meta">Compute (CPU)</span>
+                <span class="hero-cost">$200</span>
+              </button>
+              <button class="deploy-card" data-hero="mind-palace" title="Archivist - Database Node">
+                <span class="hero-icon">🧠</span>
+                <span class="hero-name">Mind-Palace</span>
+                <span class="hero-meta">Database (DB)</span>
+                <span class="hero-cost">$300</span>
+              </button>
+              <button class="deploy-card" data-hero="dispatcher" title="Chief Dispatcher - Load Balancer">
+                <span class="hero-icon">📡</span>
+                <span class="hero-name">Dispatcher</span>
+                <span class="hero-meta">Load Balancer</span>
+                <span class="hero-cost">$150</span>
+              </button>
+              <button class="deploy-card" data-hero="cache" title="Sticky-Note Assistant - Cache">
+                <span class="hero-icon">📌</span>
+                <span class="hero-name">Sticky Assistant</span>
+                <span class="hero-meta">Local Cache</span>
+                <span class="hero-cost">$100</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Selected Component Details & Upgrades -->
+          <div class="sub-section" id="inspector-section">
+            <h3 class="section-title">COMPONENT INSPECTOR</h3>
+            <div id="inspector-content" class="inspector-empty">
+              <p>Click on any hero or portal in the grid to inspect details and purchase upgrades.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Telemetry Tab -->
+        <div class="tab-content hidden" id="tab-telemetry">
+          <div class="sub-section">
+            <h3 class="section-title">LIVE STATISTICS</h3>
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <span class="metric-label">DISTRESS CALLS (RPS)</span>
+                <span class="metric-val" id="metric-rps">0.0</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">RESOLVED CALLS</span>
+                <span class="metric-val text-green" id="metric-resolved">0</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">FAILED / DROPPED</span>
+                <span class="metric-val text-red" id="metric-failed">0</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">AVG RESPONSE TIME</span>
+                <span class="metric-val" id="metric-latency">0ms</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Node Performance Monitors -->
+          <div class="sub-section">
+            <h3 class="section-title">NODE TELEMETRY</h3>
+            <div id="node-telemetry-container" class="node-telemetry-list">
+              <!-- Dynamically populated with status bars for placed heroes -->
+              <p class="empty-list-msg">No active heroes deployed yet.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Game Guide Tab -->
+        <div class="tab-content hidden" id="tab-guide">
+          <div class="sub-section" style="max-height: 100%; display: flex; flex-direction: column;">
+            <h3 class="section-title">SYSTEM COMPONENT DICTIONARY</h3>
+            <div class="guide-scroll-container" style="display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding-right: 4px; margin-top: 8px;">
+              <div class="guide-item" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 10px; display: flex; gap: 10px; align-items: flex-start;">
+                <span style="font-size: 20px;">⚡</span>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <h5 style="font-size: 11px; font-weight: 700; color: var(--primary); font-family: var(--font-title);">Volt (Speedster) ➡️ Compute (CPU)</h5>
+                  <p style="font-size: 10px; line-height: 1.4; color: var(--muted);">Resolves distress calls. Upgrades boost processing speed and queue size to prevent buffer overflows.</p>
+                </div>
+              </div>
+              <div class="guide-item" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 10px; display: flex; gap: 10px; align-items: flex-start;">
+                <span style="font-size: 20px;">📡</span>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <h5 style="font-size: 11px; font-weight: 700; color: var(--primary); font-family: var(--font-title);">Dispatcher ➡️ Load Balancer</h5>
+                  <p style="font-size: 10px; line-height: 1.4; color: var(--muted);">Distributes calls between Speedsters. Enable health checks (Telepathic Ping) to dynamically bypass frozen heroes.</p>
+                </div>
+              </div>
+              <div class="guide-item" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 10px; display: flex; gap: 10px; align-items: flex-start;">
+                <span style="font-size: 20px;">🧠</span>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <h5 style="font-size: 11px; font-weight: 700; color: var(--primary); font-family: var(--font-title);">Mind-Palace ➡️ Database (DB)</h5>
+                  <p style="font-size: 10px; line-height: 1.4; color: var(--muted);">Stores registries. Syncs replicas via replication.
+                  <br>• <strong>AP Mode</strong>: High availability. Resolves data sync conflicts after partitions.
+                  <br>• <strong>CP Mode</strong>: Strict consistency. Rejects updates if nodes lose consensus majority.</p>
+                </div>
+              </div>
+              <div class="guide-item" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 10px; display: flex; gap: 10px; align-items: flex-start;">
+                <span style="font-size: 20px;">📌</span>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <h5 style="font-size: 11px; font-weight: 700; color: var(--primary); font-family: var(--font-title);">Sticky Assistant ➡️ Memory Cache</h5>
+                  <p style="font-size: 10px; line-height: 1.4; color: var(--muted);">Remembers frequent questions locally, intercepting reads so heroes don't waste time making database queries.</p>
+                </div>
+              </div>
+              <div class="guide-item" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 10px; display: flex; gap: 10px; align-items: flex-start;">
+                <span style="font-size: 20px;">🐳</span>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <h5 style="font-size: 11px; font-weight: 700; color: var(--primary); font-family: var(--font-title);">Clone Coordinator ➡️ Orchestration</h5>
+                  <p style="font-size: 10px; line-height: 1.4; color: var(--muted);">Tracks clone counts. Spawns/terminates clones automatically to reconcile current cluster state with desired state.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Incident Log (Always Visible at bottom of right panel) -->
+        <div class="incident-section">
+          <h3 class="section-title">🚨 INCIDENT RESPONSE LOG</h3>
+          <div class="log-container" id="incident-log">
+            <div class="log-entry system-msg">[SYSTEM] Dispatch center initialized. Ready for deployment.</div>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+  </div>
+
+  <!-- Game Scripts -->
+  <script src="js/levels.js"></script>
+  <script src="js/simulation.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
