@@ -6,7 +6,7 @@
 
 ---
 
-## 🌌 The Vision & Promise
+## 🌌 The Vision & Premise
 
 Distributed computing is notoriously difficult to teach. Traditional education relies on complex jargon (e.g. *load balancers, Docker containers, multi-AZ active-passive replication, idempotency keys*). 
 
