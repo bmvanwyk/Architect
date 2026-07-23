@@ -61,8 +61,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': mime });
     res.end(content);
   } catch {
-    res.writeHead(404);
-    res.end('Not found');
+    if (!res.headersSent) { res.writeHead(404); res.end('Not found'); }
   }
 });
 
