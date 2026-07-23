@@ -293,8 +293,14 @@ window.Renderer = class Renderer {
         color = '#00e676'; // Acid Green for ACKs
         radius = 3;
       } else if (pkt.type === 'sync') {
-        color = '#00f2fe'; // Blue for DB syncing
+        color = '#00f2fe'; // Blue for DB replication sync
         radius = 5.5;
+      } else if (pkt.type === 'write') {
+        color = '#ff9800'; // Orange for DB writes
+        radius = 4.5;
+      } else if (pkt.type === 'read') {
+        color = '#bb86fc'; // Purple for DB reads
+        radius = 4.5;
       }
       
       ctx.beginPath();

@@ -40,6 +40,7 @@ window.Simulation = class Simulation {
       latencySum: 0,
       latencyCount: 0,
       dbReads: 0,
+      dbWrites: 0,
       staleDbReads: 0,
       dbConflicts: 0,
       dbConflictsResolved: 0
@@ -101,6 +102,7 @@ window.Simulation = class Simulation {
       latencySum: 0,
       latencyCount: 0,
       dbReads: 0,
+      dbWrites: 0,
       staleDbReads: 0,
       dbConflicts: 0,
       dbConflictsResolved: 0
@@ -320,8 +322,12 @@ window.Simulation = class Simulation {
       if (pkt.state === 'in-transit') {
         pkt.progress += pkt.speed;
         
-        // Unstable portal drop check (packet loss simulator)
-        if (pkt.progress >= 0.5 && !pkt.hasPassedLossCheck) {
+        // Unstable portal drop check (packet loss simulator).
+        // Only apply network loss to forwarded packets that have a known
+        // sender — packets dispatched anonymously from an emergency (from:null)
+        // represent a local routing attempt before they've even hit a portal,
+        // and retry logic only exists for dispatcher-→-volt forwarding.
+        if (pkt.from && pkt.progress >= 0.5 && !pkt.hasPassedLossCheck) {
           pkt.hasPassedLossCheck = true;
           if (Math.random() < this.settings.networkLossRate) {
             // Packet is lost!
@@ -382,6 +388,18 @@ window.Simulation = class Simulation {
     if (destination.dedupEnabled && destination.seenPacketIds.has(pkt.id)) {
       this.log(`🛡️ IDEMPOTENCY MATCH: Volt discarded duplicate Packet #${pkt.id}`, "info");
       this.stats.duplicates++;
+      
+      // Even for a discarded duplicate, reply with an ACK so the sender
+      // (usually a Dispatcher awaiting a routing confirmation) learns the
+      // call was already resolved and stops retrying.
+      if (this.settings.ackEnabled && pkt.from) {
+        const ackPacket = new Packet(
+          this.nextPacketId++, 'ack',
+          destination, pkt.from,
+          pkt.id
+        );
+        this.packets.push(ackPacket);
+      }
       return;
     }
     
@@ -442,9 +460,16 @@ window.Simulation = class Simulation {
       // Begin processing next packet
       volt.currentTask = volt.queue[0];
       volt.currentTaskProgress = 0.01;
+      volt.dbReadSent = false;
     }
     
     if (volt.currentTask) {
+      // Kick off a database READ for civilian address (Levels 4 & 5)
+      if (!volt.dbReadSent) {
+        volt.dbReadSent = true;
+        this.emitDbReadPacket(volt, volt.currentTask.payload);
+      }
+      
       volt.currentTaskProgress += volt.processingRate;
       
       // Upgrade CPU loading stats
@@ -466,6 +491,9 @@ window.Simulation = class Simulation {
         // Log transaction
         this.log(`✅ RESOLVED: Distress call at (${Math.round(emergency.x)}, ${Math.round(emergency.y)}) resolved by ${volt.name}! Earned $40`, "info");
         
+        // Commit rescue record to the primary database (Levels 4 & 5)
+        this.emitDbWritePacket(volt, emergency);
+        
         // If ACKs enabled, transmit ACK packet back to sender
         if (this.settings.ackEnabled && completedPacket.from) {
           const ackPacket = new Packet(
@@ -486,6 +514,79 @@ window.Simulation = class Simulation {
       volt.cpuLoad = 0;
     }
   }
+  
+  // Pick the best database node to handle a query for this speedster.
+  // Honors network partitions (Level 5) so nodes never cross the Rift,
+  // otherwise Volts would appear to send to servers that are unreachable.
+  findTargetDatabase(volt, rolePreference) {
+    const all = this.nodes.filter(n => n.type === 'mind-palace' && n.status === 'active' && !n.isFrozen);
+    if (all.length === 0) return null;
+    
+    let candidates = all;
+    if (this.settings.networkPartitionActive && this.width > 0) {
+      const voltLeftSide = volt.x < this.width / 2;
+      const sameSide = all.filter(d => (d.x < this.width / 2) === voltLeftSide);
+      if (sameSide.length > 0) candidates = sameSide;
+    }
+    
+    if (rolePreference) {
+      const preferred = candidates.filter(d => d.dbRole === rolePreference);
+      if (preferred.length > 0) candidates = preferred;
+    }
+    
+    // Closest Euclidean match
+    let target = candidates[0];
+    let minDist = Math.hypot(volt.x - target.x, volt.y - target.y);
+    for (let i = 1; i < candidates.length; i++) {
+      const d = Math.hypot(volt.x - candidates[i].x, volt.y - candidates[i].y);
+      if (d < minDist) { minDist = d; target = candidates[i]; }
+    }
+    return target;
+  }
+  
+  // Volts write rescue records to the primary database (Level 4 + 5).
+  // Keys are drawn from a tiny shared pool of shelter records so that
+  // simultaneous writes during a network partition (Level 5, AP mode) can
+  // actually collide and exercise CAP conflict resolution. Without a shared
+  // key space, every write would be unique and split-brain would never happen.
+  emitDbWritePacket(volt, emergency) {
+    // Volts share one hot key ("emergency_shelter") — every successful rescue updates
+    // the same registry record. Under a network partition this creates the classic
+    // AP-mode split-brain: both sides write competing values to the same key, which
+    // is exactly what CAP conflict resolution is designed to reconcile after heal.
+    const key = 'emergency_shelter';
+    const val = `${volt.name}:rescued#${emergency.id}`;
+    const primary = this.findTargetDatabase(volt, 'primary');
+    if (!primary) {
+      // No reachable primary — fall back to any same-side database so the
+      // animation still plays (CP mode will reject the actual write later).
+      const fallback = this.findTargetDatabase(volt, null);
+      if (!fallback) return;
+      this.spawnDbPacket(volt, fallback, 'write', { key, val });
+      return;
+    }
+    this.spawnDbPacket(volt, primary, 'write', { key, val });
+  }
+  
+  // Volts read civilian address files from the closest replica (Level 4 + 5).
+  // Reads from replicas enable load distribution; falls back to primary when no replica exists.
+  // The key read is the "civilian_address" address-book entry — a stable value set at
+  // boot that only reads-stale while the replica is waiting for its first sync from primary.
+  // (Reads intentionally target a different key than the hot "emergency_shelter" written
+  // by every rescue; otherwise the replica would always lag, making the level's <5% stale
+  // objective mathematically impossible under realistic traffic.)
+  emitDbReadPacket(volt, emergency) {
+    const key = 'civilian_address';
+    const replica = this.findTargetDatabase(volt, 'replica');
+    const target = replica || this.findTargetDatabase(volt, 'primary');
+    if (!target) return;
+    this.spawnDbPacket(volt, target, 'read', { key });
+  }
+  
+  spawnDbPacket(from, to, type, payload) {
+    const packet = new Packet(this.nextPacketId++, type, from, to, payload);
+    this.packets.push(packet);
+  }
 
   processDispatcherNode(dispatcher) {
     if (dispatcher.queue.length === 0) return;
@@ -493,11 +594,11 @@ window.Simulation = class Simulation {
     const request = dispatcher.queue.shift();
     
     // Route request to speedsters (Volt nodes)
-    let speedsters = this.nodes.filter(n => (n.type === 'volt' || n.isClone));
+    let speedsters = this.nodes.filter(n => (n.type === 'volt' || n.isClone) && n.status === 'active');
     
-    // Filter by health check if enabled
+    // Filter by health check if enabled (catches frozen, not destroyed)
     if (dispatcher.healthCheckEnabled) {
-      speedsters = speedsters.filter(n => n.status === 'active' && !n.isFrozen);
+      speedsters = speedsters.filter(n => !n.isFrozen);
     }
     
     if (speedsters.length === 0) {
@@ -609,7 +710,11 @@ window.Simulation = class Simulation {
           db.registry[key] = val;
         }
         
-        this.log(`📝 DATABASE WRITE: Record successfully written to ${db.name}: {${key}: ${val}}`, "info");
+        this.stats.dbWrites = (this.stats.dbWrites || 0) + 1;
+        // Throttle: only one summary log per 5 writes so the incident log isn't flooded.
+        if (this.stats.dbWrites % 5 === 1) {
+          this.log(`📝 DATABASE WRITE: ${this.stats.dbWrites} records committed to ${db.name} so far`, "info");
+        }
       } else if (pkt.type === 'read') {
         // Check for stale data reads (Eventual consistency metrics)
         const { key } = pkt.payload;
@@ -621,6 +726,7 @@ window.Simulation = class Simulation {
         
         if (correctVal !== readVal) {
           this.stats.staleDbReads++;
+          // Keep one warning per stale read to surface the consistency problem clearly.
           this.log(`⚠️ STALE READ DETECTED: Volt read address from ${db.name} but got stale value: '${readVal}' instead of '${correctVal}'`, "warning");
         }
       }
@@ -722,11 +828,14 @@ window.Simulation = class Simulation {
   calculatePanic() {
     const activeCount = this.emergencies.length;
     
-    // Increase panic based on unanswered calls in queue
+    // Increase panic based on unanswered calls in queue.
+    // A moderate coefficient (0.04) means each extra pending call adds ~2.4%/sec,
+    // and recovery is slightly faster at 0.06/sec when things are under control.
+    // This is forgiving enough that a capable network can recover from a brief surge.
     if (activeCount > 3) {
-      this.panic = Math.min(100, this.panic + 0.12 * (activeCount - 3));
+      this.panic = Math.min(100, this.panic + 0.04 * (activeCount - 3));
     } else {
-      this.panic = Math.max(0, this.panic - 0.08);
+      this.panic = Math.max(0, this.panic - 0.06);
     }
     
     // Round panic indicator
@@ -948,7 +1057,15 @@ class Node {
     
     if (this.type === 'mind-palace') {
       this.dbRole = this.id % 2 === 1 ? 'primary' : 'replica';
-      this.registry = { "emergency_shelter": "Sector 4" };
+      // Two keys: the hot "emergency_shelter" is mutated on every successful
+      // rescue and is what causes CAP conflicts in Level 5. The "civilian_address"
+      // key is the address-book that speedsters READ on every dispatch — it is
+      // seeded at boot time and never rewritten by the application, so replicas
+      // only have stale values during the very first sync window.
+      this.registry = {
+        "emergency_shelter": "Sector 4",
+        "civilian_address": "North District 7"
+      };
       this.syncSpeedTicks = 120; // 2 seconds sync
       this.lastSyncTick = 0;
       this.maxQueue = 15;

@@ -33,6 +33,14 @@
           <span class="stat-value text-red" id="stat-panic">0%</span>
         </div>
       </div>
+      <div class="header-controls">
+        <button id="btn-audio" class="btn-audio" title="Toggle Music & SFX">
+          <div class="audio-bars">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          🔊 AUDIO
+        </button>
+      </div>
     </header>
 
     <!-- Main Workspace Area -->
@@ -163,6 +171,12 @@
                 <span class="hero-meta">Local Cache</span>
                 <span class="hero-cost">$100</span>
               </button>
+              <button class="deploy-card" data-hero="coordinator" title="Clone Coordinator - Orchestrator">
+                <span class="hero-icon">🐳</span>
+                <span class="hero-name">Clone Coordinator</span>
+                <span class="hero-meta">Orchestrator</span>
+                <span class="hero-cost">$250</span>
+              </button>
             </div>
           </div>
 
@@ -272,6 +286,7 @@
   <script src="js/levels.js"></script>
   <script src="js/simulation.js"></script>
   <script src="js/renderer.js"></script>
+  <script src="js/audio.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
 </body>

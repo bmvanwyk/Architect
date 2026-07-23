@@ -95,7 +95,10 @@ window.Levels = [
         return volt && volt.dedupEnabled;
       }},
       { id: "resolve_calls", text: "Resolve 30 calls across the portal link", check: (sim) => sim.stats.resolved >= 30 },
-      { id: "prevent_duplicates", text: "Keep total duplicate missions at 0", check: (sim) => sim.stats.duplicates === 0 }
+      { id: "prevent_duplicates", text: "Let the De-duplication Logbook safely discard at least 1 duplicate mission (proving it works)", check: (sim) => {
+        const volt = sim.nodes.find(n => n.type === 'volt');
+        return volt && volt.dedupEnabled && sim.stats.duplicates >= 1;
+      }}
     ],
     setup: (sim) => {
       sim.credits = 1000;
@@ -167,14 +170,14 @@ window.Levels = [
     setup: (sim) => {
       sim.credits = 1500;
       // Place two databases and two speedsters on left/right sides
-      const db1 = sim.spawnNode('mind-palace', sim.width / 4, sim.height / 3);
+      const db1 = sim.spawnNode('mind-palace', sim.width / 4, sim.height / 3, { preplaced: true });
       db1.dbRole = 'primary';
       
-      const db2 = sim.spawnNode('mind-palace', (sim.width * 3) / 4, sim.height / 3);
+      const db2 = sim.spawnNode('mind-palace', (sim.width * 3) / 4, sim.height / 3, { preplaced: true });
       db2.dbRole = 'replica';
       
-      sim.spawnNode('volt', sim.width / 4, (sim.height * 2) / 3);
-      sim.spawnNode('volt', (sim.width * 3) / 4, (sim.height * 2) / 3);
+      sim.spawnNode('volt', sim.width / 4, (sim.height * 2) / 3, { preplaced: true });
+      sim.spawnNode('volt', (sim.width * 3) / 4, (sim.height * 2) / 3, { preplaced: true });
       
       // Establish initial connection portal
       sim.spawnPortal(db1, db2);
@@ -202,9 +205,9 @@ window.Levels = [
     tagline: "Containers & Automated Orchestration",
     desc: "Meteor storms are hammering the city, randomly destroying hero stations! Doing manual re-deploys is impossible. You must deploy a **Clone Coordinator (Kubernetes Orchestrator)**, package Volt into a **Holographic Clone (Container)**, set the desired state to 4, and let the system auto-heal itself when nodes crash.",
     credits: 1600,
-    allowedHeroes: ["volt", "dispatcher"],
-    spawnRate: 1000,
-    spawnIntensity: 3,
+    allowedHeroes: ["volt", "dispatcher", "coordinator"],
+    spawnRate: 900,
+    spawnIntensity: 2,
     objectives: [
       { id: "deploy_coordinator", text: "Deploy a Clone Coordinator", check: (sim) => sim.nodes.some(n => n.type === 'coordinator') },
       { id: "set_clones", text: "Set Coordinator's desired Speedster Clones to 4", check: (sim) => {
@@ -212,17 +215,20 @@ window.Levels = [
         return coord && coord.desiredReplicaCount >= 4;
       }},
       { id: "auto_healed", text: "Survive the meteor shower (Let the coordinator replace destroyed nodes)", check: (sim) => sim.tickCount >= 1000 },
-      { id: "resolve_calls", text: "Successfully resolve 50 calls during the bombardment", check: (sim) => sim.stats.resolved >= 50 }
+      { id: "resolve_calls", text: "Successfully resolve 40 calls during the bombardment", check: (sim) => sim.stats.resolved >= 40 }
     ],
     setup: (sim) => {
       sim.credits = 1600;
-      // Pre-place a Dispatcher in the center
+      // Pre-place a Dispatcher + one Volt so the level doesn't panic out
+      // before the player has time to deploy the Coordinator and configure clones.
       sim.spawnNode('dispatcher', sim.width / 2, sim.height / 2, { preplaced: true });
-      sim.log("☄️ METEOR DETECTED: Large rocks are falling! Clones and towers will be destroyed randomly. Use a Clone Coordinator to maintain your desired state.", "warning");
+      sim.spawnNode('volt', sim.width / 3, sim.height / 2, { preplaced: true });
+      sim.log("☄️ METEOR DETECTED: Large rocks are falling! Deploy a Clone Coordinator, set its clone count to 4, and let it auto-heal. One Volt is already on duty — deploy reinforcements quickly!", "warning");
     },
     tick: (sim) => {
-      // Trigger random meteor strikes
-      if (sim.tickCount >= 200 && sim.tickCount % 120 === 0) {
+      // Trigger random meteor strikes (every ~3 seconds so the coordinator
+      // has time to re-spawn clones between hits).
+      if (sim.tickCount >= 400 && sim.tickCount % 180 === 0) {
         // Strike a random speedster node
         const speedsters = sim.nodes.filter(n => (n.type === 'volt' || n.isClone) && n.status === 'active');
         if (speedsters.length > 0) {

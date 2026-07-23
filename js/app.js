@@ -16,6 +16,9 @@ class App {
     
     // 3. Instantiate UI
     this.ui = new window.UI(this.sim, this);
+
+    // 4. Instantiate Audio Engine (lazy-init on first user gesture)
+    this.audio = new window.AudioManager();
     
     // 4. Bind app-level simulation triggers
     this.sim.onTickCallback = () => this.ui.updateTickUI();
@@ -52,11 +55,14 @@ class App {
   startSimulation() {
     this.sim.start();
     this.ui.updateTickUI();
+    // Start audio on first simulation play (browser autoplay policy safe)
+    if (!this.audio.isMuted) this.audio.start();
   }
 
   pauseSimulation() {
     this.sim.pause();
     this.ui.updateTickUI();
+    this.audio.stop();
   }
 
   restartLevel() {

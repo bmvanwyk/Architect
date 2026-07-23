@@ -66,7 +66,10 @@ window.UI = class UI {
       // Resizers
       resizerLeft: document.getElementById('resizer-left'),
       resizerRight: document.getElementById('resizer-right'),
-      mainLayout: document.querySelector('.main-layout')
+      mainLayout: document.querySelector('.main-layout'),
+
+      // Audio
+      btnAudio: document.getElementById('btn-audio')
     };
 
     // Panel Resizing State
@@ -126,6 +129,15 @@ window.UI = class UI {
     if (this.dom.btnLoad) {
       this.dom.btnLoad.addEventListener('click', () => this.loadState());
     }
+
+    // Audio toggle
+    if (this.dom.btnAudio) {
+      this.dom.btnAudio.addEventListener('click', () => {
+        const muted = this.app.audio.toggleMute();
+        this.dom.btnAudio.textContent = muted ? '🔇 AUDIO' : '🔊 AUDIO';
+        this.dom.btnAudio.classList.toggle('btn-audio-muted', muted);
+      });
+    }
     
     this.dom.levelSelect.addEventListener('change', (e) => {
       this.app.loadLevel(parseInt(e.target.value));
@@ -179,6 +191,9 @@ window.UI = class UI {
     this.dom.toolSelect.classList.toggle('active', tool === 'select');
     this.dom.toolWire.classList.toggle('active', tool === 'wire');
     
+    // Reset canvas cursor to default unless we are in deploy mode.
+    this.dom.canvas.style.cursor = tool === 'deploy' ? 'crosshair' : '';
+    
     if (tool !== 'select') {
       this.selectedNode = null;
       this.updateInspector();
@@ -207,6 +222,9 @@ window.UI = class UI {
       card.classList.toggle('active', card.dataset.hero === heroType);
     });
     
+    // Show crosshair cursor on canvas so the player knows placement mode is active.
+    this.dom.canvas.style.cursor = 'crosshair';
+    
     this.updateInspector();
     this.sim.log(`🛠️ PLACEMENT ACTIVE: Click anywhere on the map to deploy ${heroType.toUpperCase()}`, "system-msg");
   }
@@ -220,7 +238,13 @@ window.UI = class UI {
     
     if (this.selectedTool === 'deploy') {
       if (clickedNode) {
-        this.sim.log("❌ PLACEMENT ERROR: Cannot deploy hero on top of another node!", "warning");
+        this.sim.log(`❌ DEPLOY BLOCKED: ${clickedNode.name} is occupying that position. Click further away — there is plenty of empty space elsewhere on the map.`, "warning");
+        return;
+      }
+      
+      const costs = { volt: 200, 'mind-palace': 300, dispatcher: 150, cache: 100, coordinator: 250 };
+      if (!this.sim.credits || this.sim.credits < (costs[this.selectedHeroToDeploy] || 1)) {
+        this.sim.log(`❌ INSUFFICIENT BUDGET: Deploying ${this.selectedHeroToDeploy} costs $${costs[this.selectedHeroToDeploy]}. You have $${this.sim.credits}. Resolve more distress calls to earn credits.`, "warning");
         return;
       }
       
@@ -230,6 +254,8 @@ window.UI = class UI {
         this.setTool('select');
         this.selectedNode = node;
         this.updateInspector();
+        // SFX
+        if (this.app.audio) this.app.audio.sfxDeploy();
       }
     } else if (this.selectedTool === 'wire') {
       if (!clickedNode) return;
@@ -247,6 +273,8 @@ window.UI = class UI {
         const portal = this.sim.spawnPortal(this.wireStartNode, clickedNode);
         this.wireStartNode = null;
         this.setTool('select');
+        // SFX
+        if (this.app.audio) this.app.audio.sfxDeploy();
       }
     } else if (this.selectedTool === 'select') {
       this.selectedNode = clickedNode || null;
@@ -316,17 +344,27 @@ window.UI = class UI {
 
     // 7. Render node status progress list
     this.renderNodeTelemetry();
+
+    // 8. Drive audio engine with current panic + play state
+    if (this.app.audio) {
+      this.app.audio.onSimulationTick(this.sim.panic, this.sim.isPlaying);
+    }
   }
 
   updateDeployInventoryLimits() {
     this.dom.deployCards.forEach(card => {
       const type = card.dataset.hero;
       const allowed = this.sim.levelConfig.allowedHeroes.includes(type);
-      
-      const costs = { 'volt': 200, 'mind-palace': 300, 'dispatcher': 150, 'cache': 100 };
+      const costs = { 'volt': 200, 'mind-palace': 300, 'dispatcher': 150, 'cache': 100, 'coordinator': 250 };
       const canAfford = this.sim.credits >= costs[type];
       
       card.disabled = !allowed || !canAfford;
+      // Give the player a hint about WHY a card is locked.
+      if (!allowed) {
+        card.title = `This component is not available on the current mission.`;
+      } else if (!canAfford) {
+        card.title = `Need $${costs[type]} — current budget: $${this.sim.credits}`;
+      }
     });
   }
 
@@ -603,12 +641,14 @@ window.UI = class UI {
     this.dom.overlayText.innerText = `Great job Architect! You successfully built a resilient, self-healing system and solved Level ${this.sim.currentLevelId}. Ready for the next architectural challenge?`;
     this.dom.overlayAction.innerText = "NEXT LEVEL ▶";
     this.dom.overlay.classList.remove('hidden');
+    if (this.app.audio) this.app.audio.sfxSuccess();
   }
 
   showFailScreen() {
     this.dom.overlayTitle.innerText = "SYSTEM FAIL 💥";
     this.dom.overlayText.innerText = `The panic index reached 100%! Overloaded queues, broken network pathways, or unhealthful configurations caused calls to expire. Refine your system layout and try again.`;
     this.dom.overlayAction.innerText = "RESTART MISSION 🔄";
+    if (this.app.audio) this.app.audio.sfxGameOver();
     
     // Wire overlayAction to restart instead
     const restartCallback = () => {

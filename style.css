@@ -990,3 +990,110 @@ body {
   background: var(--primary);
   box-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
 }
+
+/* ── Audio Controls ──────────────────────────────────────────── */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 18px;
+}
+
+.btn-audio {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-title);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--primary);
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  border-radius: 6px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Animated waveform shimmer behind the button when audio is ON */
+.btn-audio::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 242, 254, 0.12) 40%,
+    rgba(79, 172, 254, 0.18) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: audio-shimmer 2.4s ease-in-out infinite;
+  border-radius: inherit;
+}
+
+@keyframes audio-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.btn-audio:hover {
+  background: rgba(0, 242, 254, 0.18);
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.4), inset 0 0 8px rgba(0, 242, 254, 0.1);
+  transform: translateY(-1px);
+}
+
+.btn-audio:active {
+  transform: translateY(0);
+}
+
+/* Muted state — desaturate */
+.btn-audio.btn-audio-muted {
+  color: var(--muted);
+  background: rgba(136, 146, 176, 0.07);
+  border-color: rgba(136, 146, 176, 0.2);
+  box-shadow: none;
+}
+
+.btn-audio.btn-audio-muted::before {
+  animation: none;
+  opacity: 0;
+}
+
+/* Mini waveform bars — decorative, rendered via CSS only */
+.btn-audio .audio-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+
+.btn-audio .audio-bars span {
+  display: block;
+  width: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  animation: bar-bounce 0.8s ease-in-out infinite alternate;
+}
+
+.btn-audio .audio-bars span:nth-child(1) { height: 4px;  animation-delay: 0s; }
+.btn-audio .audio-bars span:nth-child(2) { height: 10px; animation-delay: 0.15s; }
+.btn-audio .audio-bars span:nth-child(3) { height: 6px;  animation-delay: 0.3s; }
+.btn-audio .audio-bars span:nth-child(4) { height: 12px; animation-delay: 0.1s; }
+
+@keyframes bar-bounce {
+  from { transform: scaleY(0.4); opacity: 0.6; }
+  to   { transform: scaleY(1.0); opacity: 1.0; }
+}
+
+.btn-audio.btn-audio-muted .audio-bars span {
+  animation: none;
+  height: 4px !important;
+  background: var(--muted);
+  opacity: 0.4;
+}
+
