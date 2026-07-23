@@ -66,12 +66,41 @@ flowchart LR
 
 ## 🎮 The 6 Missions (Level Progression)
 
-*   **Mission 1: The Solo Vigilante (Single Node Limits)**: Volt is working alone. As SOS calls surge, his queue overflows and panic rises. Players learn to upgrade his speed (CPU) and queue buffer (vertical scaling), realizing it has a physical limit.
-*   **Mission 2: The Hero League (Load Balancing)**: Volt gets frozen in ice by a villain. Players deploy a second Speedster and a Dispatcher. They must configure **Telepathic Ping (Health Checks)** so the Dispatcher bypasses frozen heroes.
-*   **Mission 3: The Asteroid Storm (Network Loss & ACKs)**: Portals drop 35% of packages. Players must configure **"Roger That" signals (ACKs)**, **Auto-Retries**, and Volt's **De-duplication Logbook (Idempotency)** to prevent duplicate rescue attempts.
-*   **Mission 4: Shared File Room (Replication Lag)**: Volt writes files to the Primary database but queries civilian addresses from the Replica database. Lag causes stale reads. Players manage replication synchronization speeds.
-*   **Mission 5: The Dimensional Rift (CAP Theorem)**: A spatial rift cuts the city in two. In **AP Mode** (Availability), players accept updates in both halves but must merge conflicts (latest timestamp wins) when it heals. In **CP Mode** (Consistency), databases in the minority lock down writes to guarantee data safety.
-*   **Mission 6: Self-Repairing Fleets (Kubernetes)**: Meteor showers randomly smash speedsters. Players deploy a Clone Coordinator, declare a target state of 4 clones, and watch the system automatically self-heal.
+### Mission 1: The Solo Vigilante — *Single Node Limits*
+
+Volt is working alone. As SOS calls surge, his queue overflows and panic rises. Players learn to upgrade his speed (CPU) and queue buffer (vertical scaling), realizing it has a physical limit.
+
+![Level 1 - Solo Vigilante](docs/screenshots/level-1.png)
+
+### Mission 2: The Hero League — *Load Balancing*
+
+Volt gets frozen in ice by a villain. Players deploy a second Speedster and a Dispatcher. They must configure **Telepathic Ping (Health Checks)** so the Dispatcher bypasses frozen heroes.
+
+![Level 2 - Hero League](docs/screenshots/level-2.png)
+
+### Mission 3: The Asteroid Storm — *Network Loss & ACKs*
+
+Portals drop 35% of packages. Players must configure **"Roger That" signals (ACKs)**, **Auto-Retries**, and Volt's **De-duplication Logbook (Idempotency)** to prevent duplicate rescue attempts.
+
+![Level 3 - Asteroid Storm](docs/screenshots/level-3.png)
+
+### Mission 4: The Shared File Room — *Replication Lag*
+
+Every rescue needs to be written to a database ledger. Volt writes to the Primary but queries civilian addresses from the Replica. Replication lag causes stale reads — players manage sync speed to keep consistency.
+
+![Level 4 - Shared File Room](docs/screenshots/level-4.png)
+
+### Mission 5: The Dimensional Rift — *CAP Theorem*
+
+A spatial rift cuts the city in two. In **AP Mode** players accept updates in both halves and resolve conflicts after heal. In **CP Mode** databases in the minority partition lock down writes.
+
+![Level 5 - Dimensional Rift](docs/screenshots/level-5.png)
+
+### Mission 6: The Self-Repairing Fleet — *Kubernetes*
+
+Meteor showers randomly smash speedsters. Players deploy a Clone Coordinator, set a desired state of 4 clones, and watch the system automatically self-heal when nodes are destroyed.
+
+![Level 6 - Self-Repairing Fleet](docs/screenshots/level-6.png)
 
 ---
 
