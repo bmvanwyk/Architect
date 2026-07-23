@@ -36,6 +36,34 @@ By interacting with these hero agents, players learn the **fundamental trade-off
 
 ---
 
+## 🌐 How It Works
+
+```mermaid
+flowchart LR
+    SOS["🚨 Distress Calls<br/>(SOS emergencies)"] -->|"route to"| DISP["📡 Dispatcher<br/>(Load Balancer)"]
+    DISP -->|"round-robin<br/>or least-connections"| V1["⚡ Volt<br/>(Compute)"]
+    DISP -->|"health checks skip<br/>frozen/destroyed nodes"| V2["⚡ Volt<br/>(Compute)"]
+
+    V1 -->|"read civilian files"| REP["🧠 Replica DB<br/>(Read scale-out)"]
+    V1 -->|"write rescue records"| PRI["🧠 Primary DB<br/>(Write master)"]
+    V2 -->|"read"| REP
+    V2 -->|"write"| PRI
+
+    PRI -->|"replication sync<br/>(eventual consistency)"| REP
+
+    V1 -->|"resolved ✅"| CREDITS["💰 Earn $40<br/>per rescue"]
+    V2 -->|"resolved ✅"| CREDITS
+
+    SOS -.->|"unanswered calls<br/>raise panic 📈"| PANIC["🔥 City Panic<br/>100% = game over"]
+
+    COORD["🐳 Clone Coordinator<br/>(Kubernetes)"] -.->|"auto-spawns<br/>replacements"| V1
+    COORD -.->|"desired state = 4"| V2
+```
+
+*Players build this infrastructure from scratch across 6 progressive missions.*
+
+---
+
 ## 🎮 The 6 Missions (Level Progression)
 
 *   **Mission 1: The Solo Vigilante (Single Node Limits)**: Volt is working alone. As SOS calls surge, his queue overflows and panic rises. Players learn to upgrade his speed (CPU) and queue buffer (vertical scaling), realizing it has a physical limit.
@@ -90,7 +118,7 @@ For engineers or curious students who want to look under the hood, the game is w
 | **`js/app.js`** | 94 lines | Bootstraps the components, wires callbacks, starts the requestAnimationFrame game loop |
 | **`js/audio.js`** | 578 lines | Procedural synthwave music + SFX via Web Audio API; panic-level morphs BPM and tone |
 
-For a deeper dive, see [`docs/architecture.md`](docs/architecture.md).
+For a deeper dive into the tick engine, packet lifecycle, audio synth, and all Mermaid diagrams, see **[docs/architecture.md](docs/architecture.md)**.
 
 ---
 
