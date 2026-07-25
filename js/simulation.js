@@ -300,6 +300,7 @@ window.Simulation = class Simulation {
     // Move and process packets traveling inside portals
     for (let i = this.packets.length - 1; i >= 0; i--) {
       const pkt = this.packets[i];
+      if (!pkt) continue;
       
       // Check network partition rifts (Level 5 CAP Theorem)
       if (this.settings.networkPartitionActive) {

@@ -98,3 +98,16 @@ Use `timeout 30 node -e "..."` for quick checks; `timeout 120` for full-level te
 - Stick to the existing global pattern: `window.ClassName = class ClassName` for the 3 exported classes (Simulation, Renderer, UI, AudioManager).
 - Internal classes (Node, Packet, Portal) are script-local and don't need the `window.` prefix.
 - Event handler methods on UI use `on` prefix: `handleCanvasClick`, `updateTickUI`.
+
+## Recent Fixes
+
+### 2026-07-25 — Aegis QA pass
+- **Bug fix**: `processPortals()` now guards against null packets (was crashing on Level 6 when coordinator spawned clones)
+- **Verified**: All 6 levels pass headless auto-play test
+- **Key API notes for testing**:
+  - Budget is `sim.credits` (not `sim.budget`)
+  - Coordinator uses `desiredReplicaCount` (not `desiredClones`)
+  - Global settings: `sim.settings.ackEnabled`, `sim.settings.retryEnabled`
+  - Node settings: `node.healthCheckEnabled`, `node.dedupEnabled`, `node.dbRole`
+  - Portal creation: `sim.spawnPortal(nodeA, nodeB)`
+  - Stats: `sim.stats.resolved`, `sim.stats.failed`
