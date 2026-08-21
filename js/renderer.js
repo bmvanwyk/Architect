@@ -22,12 +22,30 @@ window.Renderer = class Renderer {
     this.canvas.height = rect.height;
     this.sim.width = rect.width;
     this.sim.height = rect.height;
+    if (window.FX) {
+      window.FX.onResize(this.canvas.width, this.canvas.height);
+    }
   }
 
   draw() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
     this.dashOffset -= 0.25;
+    
+    // Build route-highlight set from in-transit packets (for connector glow)
+    this._highlight = new Set();
+    for (const p of this.sim.packets) {
+      if (p.state === 'in-transit' && p.from && p.to) {
+        this._highlight.add(p.from.id + '>' + p.to.id);
+        this._highlight.add(p.to.id + '>' + p.from.id);
+      }
+    }
+    
+    // 0. Rich starfield / glass background (FX only; degrades gracefully)
+    if (window.FX) {
+      window.FX.starfield(this.ctx, this.canvas.width, this.canvas.height);
+      window.FX.grid(this.ctx, this.canvas.width, this.canvas.height, this.sim.hoverCell || null);
+    }
     
     // 1. Draw Grid Districts
     this.drawDistricts();
@@ -51,6 +69,12 @@ window.Renderer = class Renderer {
     
     // 7. Draw Meteor Explosions
     this.drawMeteors();
+    
+    // 8. Update + draw particle effects (packet trails, sparks)
+    if (window.FX) {
+      window.FX.particles.update();
+      window.FX.particles.draw(this.ctx);
+    }
   }
 
   drawDistricts() {
@@ -87,22 +111,44 @@ window.Renderer = class Renderer {
       const isPartitioned = this.sim.settings.networkPartitionActive && 
         ((portal.from.x < this.canvas.width / 2) !== (portal.to.x < this.canvas.width / 2));
       
-      // Draw Laser Link
-      ctx.beginPath();
-      ctx.moveTo(portal.from.x, portal.from.y);
-      ctx.lineTo(portal.to.x, portal.to.y);
+      // Infer a diagram link-type label from the endpoints' roles
+      let label = null, labelColor = "rgba(0,242,254,0.9)";
+      if (!isPartitioned) {
+        const types = [portal.from.type, portal.to.type];
+        if (types.includes('mind-palace')) { label = "db"; labelColor = "#bb86fc"; }
+        else if (types.includes('dispatcher') && types.includes('volt')) { label = "lb"; labelColor = "#00e676"; }
+        else if (types.includes('dispatcher')) { label = "route"; }
+        else { label = "link"; }
+      }
       
-      if (isPartitioned) {
-        // Red dashed line for severed link
-        ctx.strokeStyle = '#ff1744';
-        ctx.setLineDash([4, 6]);
+      const key = portal.from.id + '>' + portal.to.id;
+      const highlight = this._highlight && this._highlight.has(key);
+      
+      if (window.FX) {
+        window.FX.orthogonalLink(ctx, portal.from, portal.to, {
+          partitioned: isPartitioned,
+          highlight: highlight,
+          label: label,
+          labelColor: labelColor
+        });
       } else {
-        // Glowing cyan line
-        ctx.strokeStyle = 'rgba(0, 242, 254, 0.3)';
+        // Draw Laser Link
+        ctx.beginPath();
+        ctx.moveTo(portal.from.x, portal.from.y);
+        ctx.lineTo(portal.to.x, portal.to.y);
+        
+        if (isPartitioned) {
+          // Red dashed line for severed link
+          ctx.strokeStyle = '#ff1744';
+          ctx.setLineDash([4, 6]);
+        } else {
+          // Glowing cyan line
+          ctx.strokeStyle = 'rgba(0, 242, 254, 0.3)';
+          ctx.setLineDash([]);
+        }
+        ctx.stroke();
         ctx.setLineDash([]);
       }
-      ctx.stroke();
-      ctx.setLineDash([]);
       
       // Draw end connector rings
       ctx.beginPath();
@@ -186,14 +232,18 @@ window.Renderer = class Renderer {
     for (let node of this.sim.nodes) {
       if (node.status !== 'active') continue;
       
-      // Draw Base Ring
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, 20, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
-      ctx.strokeStyle = node.isFrozen ? '#4facfe' : 'rgba(255, 255, 255, 0.15)';
-      ctx.lineWidth = 2;
-      ctx.fill();
-      ctx.stroke();
+      // Draw Base Ring (diagram node body via FX, or flat fallback)
+      if (window.FX) {
+        window.FX.diagramNode(ctx, node);
+      } else {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 20, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+        ctx.strokeStyle = node.isFrozen ? '#4facfe' : 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+      }
       
       // Draw dynamic CPU Load Ring on external border
       if (node.cpuLoad > 0) {
@@ -204,20 +254,22 @@ window.Renderer = class Renderer {
         ctx.stroke();
       }
       
-      // Icons and labels based on Type
-      ctx.font = '20px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      let icon = "🗼";
-      if (node.type === 'volt' || node.isClone) icon = "⚡";
-      if (node.type === 'dispatcher') icon = "📡";
-      if (node.type === 'mind-palace') icon = "🧠";
-      if (node.type === 'coordinator') icon = "🐳";
-      
-      ctx.fillText(icon, node.x, node.y);
-      ctx.textAlign = 'left'; // reset text align
-      ctx.textBaseline = 'alphabetic'; // reset baseline
+      // Icons and labels based on Type (emoji fallback only if FX absent)
+      if (!window.FX) {
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        let icon = "🗼";
+        if (node.type === 'volt' || node.isClone) icon = "⚡";
+        if (node.type === 'dispatcher') icon = "📡";
+        if (node.type === 'mind-palace') icon = "🧠";
+        if (node.type === 'coordinator') icon = "🐳";
+        
+        ctx.fillText(icon, node.x, node.y);
+        ctx.textAlign = 'left'; // reset text align
+        ctx.textBaseline = 'alphabetic'; // reset baseline
+      }
       
       // Frozen Block Indicator
       if (node.isFrozen) {
@@ -303,6 +355,11 @@ window.Renderer = class Renderer {
         radius = 4.5;
       }
       
+      // Packet trail (FX only)
+      if (window.FX) {
+        window.FX.particles.spawn(currentX, currentY, window.FX.packetColor(pkt), 'trail');
+      }
+      
       ctx.beginPath();
       ctx.arc(currentX, currentY, radius, 0, Math.PI * 2);
       ctx.fillStyle = color;
@@ -322,6 +379,13 @@ window.Renderer = class Renderer {
       m.opacity -= 0.035;
       
       if (m.opacity > 0) {
+        // Spark burst (FX only)
+        if (window.FX && Math.random() < 0.6) {
+          for (let s = 0; s < 3; s++) {
+            window.FX.particles.spawn(m.x, m.y, 'rgba(255,140,90,ALPHA)', 'spark');
+          }
+        }
+        
         ctx.beginPath();
         ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(255, 23, 68, ${m.opacity})`;

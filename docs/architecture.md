@@ -41,6 +41,8 @@ js/
   app.js            ── Bootstrap, game loop, component wiring
   simulation.js     ── Simulation engine, Node/Packet/Portal classes, tick logic
   renderer.js       ── Canvas 2D drawing: grid, nodes, packets, particle effects
+  fx.js             ── Presentation-only effects (starfield bg, deployment grid, diagram nodes, orthogonal connectors, particles)
+  topology.js       ── Read-only graph engine: pathing, role queries, blueprint validation (consumed by routing + UI)
   ui.js             ── DOM event binding, inspector, telemetry, tutorial, save/load
   levels.js         ── Level configuration array (6 missions)
   audio.js          ── Procedural Web Audio synth (music + SFX, panic-driven BPM)

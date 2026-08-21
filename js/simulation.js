@@ -200,45 +200,30 @@ window.Simulation = class Simulation {
   }
 
   routeEmergency(emergency) {
-    // Look for Dispatcher first
-    const dispatcher = this.nodes.find(n => n.type === 'dispatcher' && n.status === 'active');
-    
-    if (dispatcher) {
-      // Send message to Dispatcher
-      const packet = new Packet(
-        this.nextPacketId++,
-        'request',
-        null,
-        dispatcher,
-        emergency
-      );
-      this.packets.push(packet);
-      emergency.state = 'assigned';
+    let target = null;
+    if (window.Topology) {
+      target = window.Topology.entryNodeFor(this, emergency);
     } else {
-      // Send directly to the closest Volt node
+      const dispatcher = this.nodes.find(n => n.type === 'dispatcher' && n.status === 'active');
+      if (dispatcher) target = dispatcher;
+    }
+    if (!target) {
+      // Fallback: nearest active Volt
       const volts = this.nodes.filter(n => (n.type === 'volt' || n.isClone) && n.status === 'active');
       if (volts.length > 0) {
-        // Find closest
         let closest = volts[0];
         let minDist = Math.hypot(volts[0].x - emergency.x, volts[0].y - emergency.y);
         for (let v of volts) {
           const dist = Math.hypot(v.x - emergency.x, v.y - emergency.y);
-          if (dist < minDist) {
-            minDist = dist;
-            closest = v;
-          }
+          if (dist < minDist) { minDist = dist; closest = v; }
         }
-        
-        const packet = new Packet(
-          this.nextPacketId++,
-          'request',
-          null,
-          closest,
-          emergency
-        );
-        this.packets.push(packet);
-        emergency.state = 'assigned';
+        target = closest;
       }
+    }
+    if (target) {
+      const packet = new Packet(this.nextPacketId++, 'request', null, target, emergency);
+      this.packets.push(packet);
+      emergency.state = 'assigned';
     }
   }
 
@@ -272,6 +257,33 @@ window.Simulation = class Simulation {
     this.portals.push(portal);
     this.log(`🌀 PORTAL CREATED: Linked ${nodeA.name} to ${nodeB.name}`, "info");
     return portal;
+  }
+
+  // --- Deployment grid (structured placement) ---------------------------
+  _gridMetrics() {
+    const CELL = 84;
+    const cols = Math.max(1, Math.round(this.width / CELL));
+    const rows = Math.max(1, Math.round(this.height / CELL));
+    return { cols, rows, cw: this.width / cols, ch: this.height / rows };
+  }
+
+  // Snap an arbitrary canvas coordinate to the center of its grid cell.
+  snapToGrid(x, y) {
+    const { cols, rows, cw, ch } = this._gridMetrics();
+    let gx = Math.max(0, Math.min(cols - 1, Math.floor(x / cw)));
+    let gy = Math.max(0, Math.min(rows - 1, Math.floor(y / ch)));
+    return { gx, gy, x: gx * cw + cw / 2, y: gy * ch + ch / 2, cw, ch, cols, rows };
+  }
+
+  // Is the grid cell (gx,gy) free of existing nodes?
+  isCellFree(gx, gy, pad = 30) {
+    const { cw, ch } = this._gridMetrics();
+    const cx = gx * cw + cw / 2;
+    const cy = gy * ch + ch / 2;
+    for (const n of this.nodes) {
+      if (Math.hypot(n.x - cx, n.y - cy) < pad) return false;
+    }
+    return true;
   }
 
   processEmergencies() {
@@ -594,11 +606,12 @@ window.Simulation = class Simulation {
     const request = dispatcher.queue.shift();
     
     // Route request to speedsters (Volt nodes)
-    let speedsters = this.nodes.filter(n => (n.type === 'volt' || n.isClone) && n.status === 'active');
-    
-    // Filter by health check if enabled (catches frozen, not destroyed)
-    if (dispatcher.healthCheckEnabled) {
-      speedsters = speedsters.filter(n => !n.isFrozen);
+    let speedsters;
+    if (window.Topology) {
+      speedsters = window.Topology.nodesByRole(this, 'volt', dispatcher.healthCheckEnabled ? (n => !n.isFrozen) : null);
+    } else {
+      speedsters = this.nodes.filter(n => (n.type === 'volt' || n.isClone) && n.status === 'active');
+      if (dispatcher.healthCheckEnabled) speedsters = speedsters.filter(n => !n.isFrozen);
     }
     
     if (speedsters.length === 0) {
@@ -652,7 +665,9 @@ window.Simulation = class Simulation {
     if (db.dbRole === 'primary') {
       // Stream updates to replica database if a link exists
       const portals = this.portals.filter(p => p.from === db || p.to === db);
-      const replicas = this.nodes.filter(n => n.type === 'mind-palace' && n.dbRole === 'replica' && n.status === 'active');
+      const replicas = window.Topology
+        ? window.Topology.nodesByRole(this, 'mind-palace', n => n.dbRole === 'replica')
+        : this.nodes.filter(n => n.type === 'mind-palace' && n.dbRole === 'replica' && n.status === 'active');
       
       for (let replica of replicas) {
         // Find if portal links them
@@ -1127,6 +1142,7 @@ class Packet {
     this.from = from;
     this.to = to;
     this.payload = payload;
+    this.route = null; // optional ordered node list for multi-hop highlight
     
     this.state = 'in-transit'; // 'in-transit', 'sent-waiting-ack'
     this.progress = 0.0;

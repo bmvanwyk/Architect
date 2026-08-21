@@ -54,6 +54,17 @@ window.Levels = [
         return dispatcher && dispatcher.healthCheckEnabled;
       }}
     ],
+    topology: {
+      constraints: [
+        { text: 'Deploy a Dispatcher (Load Balancer)', check: (sim) => sim.nodes.some(n => n.type === 'dispatcher') },
+        { text: 'Have 2+ Speedsters (Volt / Zoom)', check: (sim) => sim.nodes.filter(n => n.type === 'volt').length >= 2 },
+        { text: 'Link Dispatcher → Volt with a Portal', check: (sim) => {
+          const d = sim.nodes.find(n => n.type === 'dispatcher');
+          const v = sim.nodes.find(n => n.type === 'volt');
+          return !!(d && v && sim.portals.some(p => (p.from === d && p.to === v) || (p.from === v && p.to === d)));
+        } }
+      ]
+    },
     setup: (sim) => {
       sim.credits = 800;
       // Pre-place Volt
@@ -100,6 +111,13 @@ window.Levels = [
         return volt && volt.dedupEnabled && sim.stats.duplicates >= 1;
       }}
     ],
+    topology: {
+      constraints: [
+        { text: 'Link Dispatcher → Volt with a Portal', check: (sim) => sim.portals.length >= 1 },
+        { text: "Enable 'Roger That' (ACKs) + 'Auto-Retry'", check: (sim) => sim.settings.ackEnabled && sim.settings.retryEnabled },
+        { text: "Enable 'De-duplication Logbook' on Volt", check: (sim) => { const v = sim.nodes.find(n => n.type === 'volt'); return !!(v && v.dedupEnabled); } }
+      ]
+    },
     setup: (sim) => {
       sim.credits = 1000;
       // Spawn Dispatcher in Center and Volt in a distant district

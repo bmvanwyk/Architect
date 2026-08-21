@@ -281,14 +281,14 @@ body {
   color: var(--muted);
 }
 
-#level-objectives {
+#level-objectives, #level-topology {
   list-style: none;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-#level-objectives li {
+#level-objectives li, #level-topology li {
   font-size: 12px;
   line-height: 1.5;
   display: flex;
@@ -296,19 +296,19 @@ body {
   gap: 8px;
 }
 
-#level-objectives li.completed {
+#level-objectives li.completed, #level-topology li.completed {
   color: var(--success);
   text-decoration: line-through;
   opacity: 0.7;
 }
 
-#level-objectives li::before {
+#level-objectives li::before, #level-topology li::before {
   content: "☐";
   color: var(--primary);
   font-weight: bold;
 }
 
-#level-objectives li.completed::before {
+#level-objectives li.completed::before, #level-topology li.completed::before {
   content: "✓";
   color: var(--success);
 }

@@ -150,8 +150,10 @@ For engineers or curious students who want to look under the hood, the game is w
 | **`style.css`** | 1100 lines | CSS Grid / Flexbox layout, glassmorphic HUD, deploy card states |
 | **`js/levels.js`** | 243 lines | Level configurations, story briefs, objective rules, custom tick triggers |
 | **`js/simulation.js`** | 1140 lines | Tick-rate physics engine: queues, packet routing, DB sync, CAP merge, cloning |
-| **`js/renderer.js`** | 341 lines | Canvas vector drawing: animated packets, laser links, meteor shockwaves |
-| **`js/ui.js`** | 828 lines | Tab selectors, click-to-deploy, inspector, panel resizers, tutorial wizard, save/load |
+| **`js/renderer.js`** | 341 lines | Canvas vector drawing: animated packets, laser links, meteor shockwaves (visual polish delegated to `fx.js`) |
+| **`js/fx.js`** | ~260 lines | Presentation-only effects: starfield background, deployment grid, diagram node shapes, orthogonal connectors, particle trails/sparks |
+| **`js/topology.js`** | ~170 lines | Read-only graph engine over portals/nodes: pathing, role queries, blueprint validation; routing + Architecture checklist consume it |
+| **`js/ui.js`** | 828 lines | Tab selectors, click-to-deploy (snap-to-grid), inspector, panel resizers, tutorial wizard, save/load |
 | **`js/app.js`** | 94 lines | Bootstraps the components, wires callbacks, starts the requestAnimationFrame game loop |
 | **`js/audio.js`** | 578 lines | Procedural synthwave music + SFX via Web Audio API; panic-level morphs BPM and tone |
 

@@ -20,6 +20,8 @@ window.UI = class UI {
       levelTitle: document.getElementById('level-title'),
       levelDesc: document.getElementById('level-desc'),
       levelObjectives: document.getElementById('level-objectives'),
+      levelTopology: document.getElementById('level-topology'),
+      topologyBox: document.getElementById('topology-box'),
       credits: document.getElementById('stat-credits'),
       panicText: document.getElementById('stat-panic'),
       panicFill: document.getElementById('panic-fill'),
@@ -163,6 +165,13 @@ window.UI = class UI {
     // 5. Canvas Clicks
     this.dom.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
 
+    // Hover highlight for the deployment grid
+    this.dom.canvas.addEventListener('mousemove', (e) => {
+      const rect = this.dom.canvas.getBoundingClientRect();
+      this.sim.hoverCell = this.sim.snapToGrid(e.clientX - rect.left, e.clientY - rect.top);
+    });
+    this.dom.canvas.addEventListener('mouseleave', () => { this.sim.hoverCell = null; });
+
     // 6. Win Screen overlay action
     this.dom.overlayAction.addEventListener('click', () => {
       this.dom.overlay.classList.add('hidden');
@@ -248,7 +257,12 @@ window.UI = class UI {
         return;
       }
       
-      const node = this.sim.spawnNode(this.selectedHeroToDeploy, x, y);
+      const snap = this.sim.snapToGrid(x, y);
+      if (!this.sim.isCellFree(snap.gx, snap.gy)) {
+        this.sim.log(`❌ DEPLOY BLOCKED: That grid cell is occupied. Deploy onto a free cell of the deployment grid.`, "warning");
+        return;
+      }
+      const node = this.sim.spawnNode(this.selectedHeroToDeploy, snap.x, snap.y);
       if (node) {
         // Success: Reset tool
         this.setTool('select');
@@ -291,6 +305,18 @@ window.UI = class UI {
     this.dom.levelObjectives.innerHTML = this.sim.levelConfig.objectives
       .map(obj => `<li id="obj-${obj.id}">${obj.text}</li>`)
       .join('');
+
+    // Draw Architecture (topology blueprint) checklist, if the level defines one
+    const topo = this.sim.levelConfig.topology;
+    if (topo && topo.constraints && topo.constraints.length) {
+      this.dom.topologyBox.style.display = '';
+      this.dom.levelTopology.innerHTML = topo.constraints
+        .map((c, i) => `<li id="topo-${i}">${c.text}</li>`)
+        .join('');
+    } else {
+      this.dom.topologyBox.style.display = 'none';
+      this.dom.levelTopology.innerHTML = '';
+    }
   }
 
   updateTickUI() {
@@ -324,6 +350,15 @@ window.UI = class UI {
           item.classList.toggle('completed', isDone);
         }
       }
+    }
+
+    // 3b. Update Architecture (topology blueprint) checklist
+    const topo = this.sim.levelConfig && this.sim.levelConfig.topology;
+    if (topo && topo.constraints) {
+      topo.constraints.forEach((c, i) => {
+        const item = document.getElementById(`topo-${i}`);
+        if (item) item.classList.toggle('completed', c.check(this.sim) === true);
+      });
     }
 
     // 4. Update Telemetry Panel

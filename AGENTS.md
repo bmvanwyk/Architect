@@ -43,7 +43,9 @@ Use `timeout 30 node -e "..."` for quick checks; `timeout 120` for full-level te
 | File | Owns | Do NOT put here |
 |------|------|-----------------|
 | `simulation.js` | All game state, tick logic, Node/Packet/Portal classes | DOM manipulation, event handlers, rendering |
-| `renderer.js` | Canvas 2D draw calls only | Game state mutation, event handling |
+| `renderer.js` | Canvas 2D draw calls only (delegates visual polish to `FX`) | Game state mutation, event handling |
+| `fx.js` | Presentation-only effects (starfield bg, grid, diagram node shapes, orthogonal connectors, particle trails/sparks); called by `renderer.js` | Never mutates simulation state; no game logic |
+| `topology.js` | Read-only graph engine over `sim.portals`/`sim.nodes`: path, nodesByRole, reachable, entryNodeFor, bestTarget, blueprint validation (`satisfies`) | Never mutates sim; no rendering |
 | `ui.js` | DOM binding, inspector, telemetry, tutorial, save/load, deployment | Simulation logic, canvas drawing |
 | `app.js` | Bootstrap, game loop, component wiring | No business logic |
 | `levels.js` | Level configs (plain objects) | No logic — only `setup`, `tick`, and objective `check` closures |
