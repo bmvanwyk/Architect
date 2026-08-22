@@ -306,25 +306,27 @@ window.Simulation = class Simulation {
     const x = padding + Math.random() * (this.width - padding * 2);
     const y = padding + Math.random() * (this.height - padding * 2);
     
-    // Origin variety (Phase G2): each call comes from a distinct place type.
-    // Kinds only change flavor/visuals for now — SLO differences arrive in G4.
+    // Origin variety (Phase G2/G4): each call comes from a distinct place
+    // type with its own latency sensitivity. Tight SLO = higher reward:
+    // clinics are emergencies in every sense; stadium crowds can wait.
     const kinds = [
-      { k: 'home',    w: 0.50 },
-      { k: 'shop',    w: 0.25 },
-      { k: 'clinic',  w: 0.15 },
-      { k: 'stadium', w: 0.10 }
+      { k: 'home',    w: 0.50, maxLife: 800, reward: 40 },
+      { k: 'shop',    w: 0.25, maxLife: 520, reward: 70 },
+      { k: 'clinic',  w: 0.15, maxLife: 380, reward: 100 },
+      { k: 'stadium', w: 0.10, maxLife: 1200, reward: 25 }
     ];
     let roll = Math.random();
-    let kind = kinds[0].k;
-    for (const t of kinds) { roll -= t.w; if (roll <= 0) { kind = t.k; break; } }
+    let kind = kinds[0];
+    for (const t of kinds) { roll -= t.w; if (roll <= 0) { kind = t; break; } }
 
     const emergency = {
       id: this.nextEmergencyId++,
       x,
       y,
-      kind,
+      kind: kind.k,
+      reward: kind.reward,
       ticksActive: 0,
-      maxLife: 800, // Ticks before failure
+      maxLife: kind.maxLife, // Ticks before failure — latency SLO
       state: 'pending' // 'pending', 'assigned', 'resolved'
     };
     
@@ -538,7 +540,10 @@ window.Simulation = class Simulation {
     // Remove packet from transit list
     this.packets.splice(indexInArray, 1);
     
-    if (destination.isFrozen || destination.status !== 'active') {
+    // Destroyed nodes refuse delivery. FROZEN nodes still accept into their
+    // queue — a stalled service buffers rather than connection-refuses;
+    // dispatcher health-checks keep new traffic away until it thaws.
+    if (destination.status !== 'active') {
       this.log(`⚠️ DELIVERY ERROR: ${destination.name} is offline. Packet dropped.`, "warning");
       return;
     }
@@ -596,6 +601,17 @@ window.Simulation = class Simulation {
     
     // Push packet to queue
     destination.queue.push(pkt);
+
+    // Frozen destination accepted-and-buffered the request: acknowledge
+    // receipt now (HTTP 202 style) so the sender stops burning retries.
+    // Work drains when the node thaws; health-checks gate new traffic.
+    if (destination.isFrozen && pkt.type === 'request' && this.settings.ackEnabled && pkt.from) {
+      this.packets.push(new Packet(
+        this.nextPacketId++, 'ack',
+        destination, pkt.from,
+        pkt.id
+      ));
+    }
   }
 
   processNodes() {
@@ -644,10 +660,11 @@ window.Simulation = class Simulation {
         
         emergency.state = 'resolved';
         this.stats.resolved++;
-        this.credits += 40; // Earn credits per resolution!
+        const reward = emergency.reward || 40;
+        this.credits += reward; // Reward scales with latency-SLO difficulty
 
-        // Rescue payoff: floating "+$40" at the rescue site
-        this.resolveFx.push({ x: emergency.x, y: emergency.y, text: '+$40', life: 45, max: 45 });
+        // Rescue payoff: floating reward at the rescue site
+        this.resolveFx.push({ x: emergency.x, y: emergency.y, text: `+$${reward}`, life: 45, max: 45 });
         
         // Telemetry stats
         this.stats.latencySum += emergency.ticksActive;
@@ -655,7 +672,7 @@ window.Simulation = class Simulation {
         this.sampleLatency(emergency.ticksActive);
         
         // Log transaction
-        this.log(`✅ RESOLVED: Distress call at (${Math.round(emergency.x)}, ${Math.round(emergency.y)}) resolved by ${volt.name}! Earned $40`, "info");
+        this.log(`✅ RESOLVED: Distress call at (${Math.round(emergency.x)}, ${Math.round(emergency.y)}) resolved by ${volt.name}! Earned $${reward}`, "info");
         
         // Commit rescue record to the primary database (Levels 4 & 5)
         this.emitDbWritePacket(volt, emergency);
