@@ -421,6 +421,11 @@ window.Simulation = class Simulation {
       // If emergency expires, fail it (dropped call / high panic)
       if (em.ticksActive >= em.maxLife) {
         this.stats.failed++;
+        // An expired call is a real trust-breaking event: raise panic directly.
+        // +1 keeps the sting while leaving congested endgame levels (L6 meteor
+        // storms) headroom to recover — verified all 6 stay winnable.
+        this.panic = Math.min(100, this.panic + 1);
+        this._lastDropTick = this.tickCount;
         this.emergencies.splice(i, 1);
         this.log(`🚨 RESPONSE TIMEOUT: Distress call expired! Panic increasing.`, "danger");
         
@@ -434,7 +439,14 @@ window.Simulation = class Simulation {
     // Move and process packets traveling inside portals
     for (let i = this.packets.length - 1; i >= 0; i--) {
       const pkt = this.packets[i];
-      
+      if (!pkt) continue; // defensive: never crash on mid-tick mutations
+
+      // Reap packets resolved by an ACK earlier in this same pass
+      if (pkt.state === 'done') {
+        this.packets.splice(i, 1);
+        continue;
+      }
+
       // Check network partition rifts (Level 5 CAP Theorem)
       if (this.settings.networkPartitionActive) {
         const fromSideLeft = pkt.from ? pkt.from.x < this.width / 2 : pkt.payload.x < this.width / 2;
@@ -547,11 +559,14 @@ window.Simulation = class Simulation {
     
     // If it's an ACK packet, handle it
     if (pkt.type === 'ack') {
-      // Find original packet that was waiting for this ACK
+      // Find original packet that was waiting for this ACK.
+      // Do NOT remove it here — deliverPacket already spliced one packet this
+      // tick and processPortals' backward loop only accounts for one removal.
+      // Removing a second entry here desynchronizes the loop indices and
+      // crashes once retries/ACKs are dense (L6). Mark it; the loop reaps it.
       const original = this.packets.find(p => p.id === pkt.payload && p.state === 'sent-waiting-ack');
       if (original) {
-        this.packets = this.packets.filter(p => p !== original);
-        // Successfully resolved transaction!
+        original.state = 'done'; // successfully resolved transaction
       }
       return;
     }
