@@ -13,6 +13,11 @@ window.UI = class UI {
     this.selectedHeroToDeploy = null; // 'volt', 'mind-palace', etc.
     this.selectedNode = null;
     this.wireStartNode = null;
+
+    // Camera pan state
+    this._panActive = false;
+    this._panLast = null;
+    this._suppressClick = false;
     
     // Cache DOM references
     this.dom = {
@@ -53,6 +58,12 @@ window.UI = class UI {
       metricResolved: document.getElementById('metric-resolved'),
       metricFailed: document.getElementById('metric-failed'),
       metricLatency: document.getElementById('metric-latency'),
+      metricP95: document.getElementById('metric-p95'),
+      metricError: document.getElementById('metric-error'),
+      metricQueue: document.getElementById('metric-queue'),
+      metricTrust: document.getElementById('metric-trust'),
+      sloStatus: document.getElementById('slo-status'),
+      levelNarrative: document.getElementById('level-narrative'),
       nodeTelemetry: document.getElementById('node-telemetry-container'),
       simStatus: document.getElementById('simulation-status'),
 
@@ -165,10 +176,15 @@ window.UI = class UI {
     // 5. Canvas Clicks
     this.dom.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
 
-    // Hover highlight for the deployment grid
+    // Camera: wheel zoom + drag-to-pan (middle mouse, or Shift + left drag)
+    this.dom.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
+    this.dom.canvas.addEventListener('mousedown', (e) => this.onPanStart(e));
+
+    // Hover highlight for the deployment grid (world-space)
     this.dom.canvas.addEventListener('mousemove', (e) => {
-      const rect = this.dom.canvas.getBoundingClientRect();
-      this.sim.hoverCell = this.sim.snapToGrid(e.clientX - rect.left, e.clientY - rect.top);
+      if (this._panActive) return;
+      const w = this.toWorld(e);
+      this.sim.hoverCell = this.sim.snapToGrid(w.x, w.y);
     });
     this.dom.canvas.addEventListener('mouseleave', () => { this.sim.hoverCell = null; });
 
@@ -238,10 +254,60 @@ window.UI = class UI {
     this.sim.log(`🛠️ PLACEMENT ACTIVE: Click anywhere on the map to deploy ${heroType.toUpperCase()}`, "system-msg");
   }
 
-  handleCanvasClick(e) {
+  toWorld(e) {
     const rect = this.dom.canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    // Map CSS/client pixels into the canvas backing-store coordinate space.
+    // Without this, clicks are offset whenever the canvas's displayed CSS size
+    // differs from its backing-store size (e.g. after a resize, or with a
+    // width:100% flex layout), breaking precise node selection while leaving
+    // grid-snap deploy seemingly functional.
+    const scaleX = this.dom.canvas.width / rect.width;
+    const scaleY = this.dom.canvas.height / rect.height;
+    const sx = (e.clientX - rect.left) * scaleX;
+    const sy = (e.clientY - rect.top) * scaleY;
+    return this.app.camera.screenToWorld(sx, sy, this.dom.canvas.width, this.dom.canvas.height);
+  }
+
+  onWheel(e) {
+    e.preventDefault();
+    const rect = this.dom.canvas.getBoundingClientRect();
+    const scaleX = this.dom.canvas.width / rect.width;
+    const scaleY = this.dom.canvas.height / rect.height;
+    const sx = (e.clientX - rect.left) * scaleX;
+    const sy = (e.clientY - rect.top) * scaleY;
+    this.app.camera.zoomAt(sx, sy, e.deltaY, this.dom.canvas.width, this.dom.canvas.height);
+  }
+
+  onPanStart(e) {
+    const usePan = e.button === 1 || (e.button === 0 && e.shiftKey);
+    if (!usePan) return;
+    e.preventDefault();
+    this._panActive = true;
+    this._panLast = { x: e.clientX, y: e.clientY };
+    this.dom.canvas.style.cursor = 'grabbing';
+    const onMove = (ev) => {
+      if (!this._panActive) return;
+      const dx = ev.clientX - this._panLast.x;
+      const dy = ev.clientY - this._panLast.y;
+      this._panLast = { x: ev.clientX, y: ev.clientY };
+      if (Math.abs(dx) + Math.abs(dy) > 2) this._suppressClick = true;
+      this.app.camera.pan(dx, dy);
+    };
+    const onUp = () => {
+      this._panActive = false;
+      this.dom.canvas.style.cursor = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  handleCanvasClick(e) {
+    if (this._suppressClick) { this._suppressClick = false; return; }
+    const w = this.toWorld(e);
+    const x = w.x;
+    const y = w.y;
     
     const clickedNode = this.sim.nodes.find(n => Math.hypot(n.x - x, n.y - y) < 22 && n.status === 'active');
     
@@ -300,6 +366,12 @@ window.UI = class UI {
     if (!this.sim.levelConfig) return;
     this.dom.levelTitle.innerText = `Mission ${this.sim.levelConfig.id}: ${this.sim.levelConfig.name}`;
     this.dom.levelDesc.innerText = this.sim.levelConfig.desc;
+
+    // Narrative hook (city lore / stakes)
+    if (this.dom.levelNarrative) {
+      const n = window.Story ? window.Story.narrative(this.sim.levelConfig.id) : '';
+      this.dom.levelNarrative.innerHTML = n || '';
+    }
     
     // Draw Objectives
     this.dom.levelObjectives.innerHTML = this.sim.levelConfig.objectives
@@ -333,6 +405,10 @@ window.UI = class UI {
     } else {
       this.dom.panicText.className = "stat-value text-green";
     }
+
+    // Danger vignette on the game field: fades in above 30% panic
+    const pv = document.getElementById('panic-vignette');
+    if (pv) pv.style.opacity = Math.max(0, Math.min(0.8, (this.sim.panic - 30) / 70 * 0.8)).toFixed(2);
 
     // 2. Play/Pause buttons state
     this.dom.btnStart.disabled = this.sim.isPlaying;
@@ -370,6 +446,9 @@ window.UI = class UI {
       ? Math.round((this.sim.stats.latencySum / this.sim.stats.latencyCount) * 16.6)
       : 0;
     this.dom.metricLatency.innerText = `${avgLatency}ms`;
+
+    // 4b. Rich telemetry HUD (percentiles, queue depth, city Trust, SLO)
+    if (window.HUD) window.HUD.render(this.sim);
 
     // 5. Upgrade buttons states
     this.updateDeployInventoryLimits();

@@ -9,11 +9,15 @@ class App {
     
     // 1. Instantiate the Simulation core
     this.sim = new window.Simulation(800, 600); // defaults, resized on load
-    
+
+    // 1b. Viewport camera (pan + zoom)
+    this.camera = new window.Camera();
+
     // 2. Locate Canvas and instantiate Renderer
     const canvas = document.getElementById('sim-canvas');
     this.renderer = new window.Renderer(canvas, this.sim);
-    
+    this.renderer.camera = this.camera;
+
     // 3. Instantiate UI
     this.ui = new window.UI(this.sim, this);
 
@@ -24,13 +28,21 @@ class App {
     this.sim.onTickCallback = () => this.ui.updateTickUI();
     this.sim.onLevelCompleteCallback = () => this.ui.showSuccessScreen();
     this.sim.onLevelFailCallback = () => this.ui.showFailScreen();
+
+    // 4b. Failure-entity breach: shake the viewport + alarm sting
+    this.sim.onBreach = (kind) => {
+      this.camera.shake(kind === 'partition' ? 16 : 11, 16);
+      if (this.audio && !this.audio.isMuted) this.audio.sfxBreach();
+    };
     
     // 5. Handle resizing
     window.addEventListener('resize', () => {
       this.renderer.resize();
+      this.camera.centerOn(this.sim.width, this.sim.height);
     });
-    
+
     // 6. Load initial level (Level 1)
+    this.camera.centerOn(this.sim.width, this.sim.height);
     this.loadLevel(1);
     
     // 7. Auto-start tutorial on first load
@@ -50,6 +62,9 @@ class App {
     
     // Refresh canvas dimensions just in case grid changed
     this.renderer.resize();
+
+    // Tighter default framing: nodes and packets feel substantial at ~1.25x
+    this.camera.scale = 1.25;
   }
 
   startSimulation() {

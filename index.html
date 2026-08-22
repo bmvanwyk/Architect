@@ -60,7 +60,8 @@
         <div class="panel-body level-briefing">
           <h3 id="level-title">Mission Briefing</h3>
           <p id="level-desc" class="briefing-text">Loading instructions...</p>
-          
+          <div id="level-narrative" class="narrative-text"></div>
+           
           <div class="objective-box">
             <h4>🎯 OBJECTIVES</h4>
             <ul id="level-objectives">
@@ -103,6 +104,7 @@
         </div>
         <div class="canvas-wrapper">
           <canvas id="sim-canvas"></canvas>
+          <div id="panic-vignette"></div>
           
           <!-- Tutorial Overlay or Game Over Screens -->
           <div id="game-overlay" class="overlay hidden">
@@ -217,7 +219,24 @@
                 <span class="metric-label">AVG RESPONSE TIME</span>
                 <span class="metric-val" id="metric-latency">0ms</span>
               </div>
+              <div class="metric-card">
+                <span class="metric-label">LATENCY P95</span>
+                <span class="metric-val" id="metric-p95">0ms</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">ERROR RATE</span>
+                <span class="metric-val text-red" id="metric-error">0%</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">QUEUE DEPTH</span>
+                <span class="metric-val" id="metric-queue">0</span>
+              </div>
+              <div class="metric-card trust-card">
+                <span class="metric-label">CITY TRUST</span>
+                <span class="metric-val text-green" id="metric-trust">100%</span>
+              </div>
             </div>
+            <div id="slo-status" class="slo-status"></div>
           </div>
 
           <!-- Node Performance Monitors -->
@@ -293,7 +312,11 @@
   <script src="js/levels.js"></script>
   <script src="js/simulation.js"></script>
   <script src="js/topology.js"></script>
+  <script src="js/camera.js"></script>
   <script src="js/fx.js"></script>
+  <script src="js/content.js"></script>
+  <script src="js/story.js"></script>
+  <script src="js/hud.js"></script>
   <script src="js/renderer.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/ui.js"></script>
