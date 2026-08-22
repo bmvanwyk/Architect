@@ -43,7 +43,14 @@ window.Simulation = class Simulation {
       dbWrites: 0,
       staleDbReads: 0,
       dbConflicts: 0,
-      dbConflictsResolved: 0
+      dbConflictsResolved: 0,
+      latencySamples: [],
+      latencyP50: 0,
+      latencyP95: 0,
+      latencyP99: 0,
+      queueDepth: 0,
+      errorRate: 0,
+      cityTrust: 100
     };
     
     // Global parameters
@@ -70,6 +77,13 @@ window.Simulation = class Simulation {
     
     // Meteor visual triggers
     this.meteors = [];
+
+    // Rescue payoff floaters (+$ text at rescue location)
+    this.resolveFx = [];
+
+    // Scenario timeline (content-driven incidents / failures)
+    this._scenarioEvents = [];
+    this._scenarioPtr = 0;
   }
 
   log(message, type = 'system-msg') {
@@ -105,7 +119,14 @@ window.Simulation = class Simulation {
       dbWrites: 0,
       staleDbReads: 0,
       dbConflicts: 0,
-      dbConflictsResolved: 0
+      dbConflictsResolved: 0,
+      latencySamples: [],
+      latencyP50: 0,
+      latencyP95: 0,
+      latencyP99: 0,
+      queueDepth: 0,
+      errorRate: 0,
+      cityTrust: 100
     };
     
     // Reset global settings
@@ -122,6 +143,13 @@ window.Simulation = class Simulation {
     if (this.levelConfig) {
       this.levelConfig.setup(this);
       this.log(`🚀 LOADED: Level ${this.levelConfig.id} - ${this.levelConfig.name}`, "info");
+    }
+
+    // Content-driven scenario timeline (if the level defines one)
+    this._scenarioEvents = [];
+    this._scenarioPtr = 0;
+    if (this.levelConfig && this.levelConfig.scenario && window.Content) {
+      window.Content.applyScenario(this, this.levelConfig.scenario);
     }
   }
 
@@ -144,6 +172,9 @@ window.Simulation = class Simulation {
     if (this.levelConfig && this.levelConfig.tick) {
       this.levelConfig.tick(this);
     }
+
+    // 1b. Run content-driven scenario timeline (incidents / failure injection)
+    this.runScenarioTick();
     
     // 2. Spawn Emergencies periodically
     if (this.tickCount % Math.floor(this.levelConfig.spawnRate / 16.6) === 0) {
@@ -170,12 +201,103 @@ window.Simulation = class Simulation {
       const activeCalls = this.emergencies.length;
       this.stats.rps = parseFloat(((activeCalls + this.stats.resolved) / (this.tickCount / 60)).toFixed(1));
     }
+
+    // 7b. Derived telemetry (latency percentiles, queue depth, city Trust)
+    this.updateDerivedMetrics();
     
     // 8. Evaluate Objectives
     this.evaluateObjectives();
     
     // 9. Fire general tick callback to update canvas / UI panels
     if (this.onTickCallback) this.onTickCallback();
+  }
+
+  // ---- Scenario timeline engine -----------------------------------------
+  runScenarioTick() {
+    const evs = this._scenarioEvents;
+    if (!evs || !evs.length) return;
+    while (this._scenarioPtr < evs.length && evs[this._scenarioPtr].t <= this.tickCount) {
+      this.fireScenarioEvent(evs[this._scenarioPtr++]);
+    }
+  }
+
+  _scenarioTarget(sel) {
+    if (!sel) return null;
+    return this.nodes.find(n => n.type === sel && n.status !== 'destroyed') || null;
+  }
+
+  fireScenarioEvent(ev) {
+    const s = this;
+    switch (ev.kind) {
+      case 'spawn': {
+        const n = ev.count || 5;
+        for (let i = 0; i < n; i++) s.spawnEmergency();
+        s.log(`⚠️ INCIDENT: ${ev.label || 'Distress surge'} — ${n} new calls`, 'warning');
+        if (this.onBreach) this.onBreach('spawn');
+        break;
+      }
+      case 'loss':
+        s.settings.networkLossRate = ev.rate != null ? ev.rate : 0.3;
+        s.log(`💥 ${ev.label || 'Storm'}: packet loss ${Math.round((ev.rate || 0.3) * 100)}%`, 'danger');
+        break;
+      case 'lossEnd':
+        s.settings.networkLossRate = 0;
+        s.log(`🔓 Packet loss subsided.`, 'info');
+        break;
+      case 'partition':
+        s.settings.networkPartitionActive = true;
+        s.log(`🔏 ${ev.label || 'Rift'}: network partition active!`, 'danger');
+        if (this.onBreach) this.onBreach('partition');
+        break;
+      case 'partitionEnd':
+        s.settings.networkPartitionActive = false;
+        s.log(`🔓 Partition healed — east/west comms restored.`, 'info');
+        break;
+      case 'freeze': {
+        const tgt = this._scenarioTarget(ev.target);
+        if (tgt) { tgt.isFrozen = true; tgt.status = 'frozen'; s.log(`🧊 ${ev.label || tgt.name} frozen by failure!`, 'danger'); }
+        break;
+      }
+      case 'thaw': {
+        const tgt = this._scenarioTarget(ev.target);
+        if (tgt) { tgt.isFrozen = false; tgt.status = 'active'; s.log(`🔥 ${tgt.name} recovered.`, 'info'); }
+        break;
+      }
+      case 'latency': {
+        // Tail-latency spike on a node (Latency Wraith)
+        const tgt = this._scenarioTarget(ev.target);
+        if (tgt) { tgt.processingRate *= (ev.factor || 0.3); s.log(`👻 ${ev.label || 'Latency Wraith'}: ${tgt.name} slowed!`, 'danger'); }
+        break;
+      }
+    }
+  }
+
+  // ---- Derived metrics (telemetry HUD) -----------------------------------
+  sampleLatency(ticksActive) {
+    const samples = this.stats.latencySamples;
+    samples.push(ticksActive);
+    if (samples.length > 240) samples.shift();
+  }
+
+  computeLatencyPercentiles() {
+    const s = this.stats.latencySamples;
+    if (!s.length) { this.stats.latencyP50 = this.stats.latencyP95 = this.stats.latencyP99 = 0; return; }
+    const sorted = s.slice().sort((a, b) => a - b);
+    const pct = (p) => sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))];
+    this.stats.latencyP50 = Math.round(pct(50) * 16.6);
+    this.stats.latencyP95 = Math.round(pct(95) * 16.6);
+    this.stats.latencyP99 = Math.round(pct(99) * 16.6);
+  }
+
+  updateDerivedMetrics() {
+    let q = 0;
+    for (const n of this.nodes) q += n.queue ? n.queue.length : 0;
+    q += this.packets.length;
+    this.stats.queueDepth = q;
+    this.stats.cityTrust = Math.max(0, Math.min(100, Math.round(100 - this.panic)));
+    this.computeLatencyPercentiles();
+    const total = this.stats.resolved + this.stats.failed;
+    this.stats.errorRate = total > 0 ? (this.stats.failed / total) * 100 : 0;
   }
 
   spawnEmergency() {
@@ -495,10 +617,14 @@ window.Simulation = class Simulation {
         emergency.state = 'resolved';
         this.stats.resolved++;
         this.credits += 40; // Earn credits per resolution!
+
+        // Rescue payoff: floating "+$40" at the rescue site
+        this.resolveFx.push({ x: emergency.x, y: emergency.y, text: '+$40', life: 45, max: 45 });
         
         // Telemetry stats
         this.stats.latencySum += emergency.ticksActive;
         this.stats.latencyCount++;
+        this.sampleLatency(emergency.ticksActive);
         
         // Log transaction
         this.log(`✅ RESOLVED: Distress call at (${Math.round(emergency.x)}, ${Math.round(emergency.y)}) resolved by ${volt.name}! Earned $40`, "info");

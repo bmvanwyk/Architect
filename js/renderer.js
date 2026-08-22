@@ -28,10 +28,22 @@ window.Renderer = class Renderer {
   }
 
   draw() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    
+    const ctx = this.ctx;
+    const vw = this.canvas.width;
+    const vh = this.canvas.height;
+    ctx.save();
+    ctx.clearRect(0, 0, vw, vh);
+
+    // 0. Starfield stays in SCREEN space (parallax backdrop)
+    if (window.FX) window.FX.starfield(ctx, vw, vh);
+    ctx.restore();
+
+    // World-space layer (pans + zooms with the camera)
+    ctx.save();
+    if (this.camera) this.camera.applyTransform(ctx, vw, vh);
+
     this.dashOffset -= 0.25;
-    
+
     // Build route-highlight set from in-transit packets (for connector glow)
     this._highlight = new Set();
     for (const p of this.sim.packets) {
@@ -40,47 +52,76 @@ window.Renderer = class Renderer {
         this._highlight.add(p.to.id + '>' + p.from.id);
       }
     }
-    
-    // 0. Rich starfield / glass background (FX only; degrades gracefully)
+
+    // 0b. Deployment grid (world space)
     if (window.FX) {
-      window.FX.starfield(this.ctx, this.canvas.width, this.canvas.height);
-      window.FX.grid(this.ctx, this.canvas.width, this.canvas.height, this.sim.hoverCell || null);
+      window.FX.grid(ctx, this.sim.width, this.sim.height, this.sim.hoverCell || null);
     }
-    
+
     // 1. Draw Grid Districts
     this.drawDistricts();
-    
+
     // 2. Draw Portal Connections (Networks)
     this.drawPortals();
-    
+
     // 3. Draw Dimensional Rift (CAP partition)
     if (this.sim.settings.networkPartitionActive) {
       this.drawRift();
     }
-    
+
     // 4. Draw Distress Calls (Emergencies)
     this.drawEmergencies();
-    
+
     // 5. Draw Deployed Heroes (Nodes)
     this.drawNodes();
-    
+
     // 6. Draw Packets in Transit
     this.drawPackets();
-    
+
     // 7. Draw Meteor Explosions
     this.drawMeteors();
-    
+
+    // 7b. Rescue payoff floaters (+$40 rising from rescue sites)
+    this.drawResolveFx();
+
     // 8. Update + draw particle effects (packet trails, sparks)
     if (window.FX) {
       window.FX.particles.update();
-      window.FX.particles.draw(this.ctx);
+      window.FX.particles.draw(ctx);
+    }
+    ctx.restore();
+  }
+
+  drawResolveFx() {
+    const ctx = this.ctx;
+    const list = this.sim.resolveFx;
+    if (!list) return;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const f = list[i];
+      // One-time celebratory spark burst at spawn
+      if (f.life === f.max && window.FX) {
+        for (let s = 0; s < 6; s++) window.FX.particles.spawn(f.x, f.y, '#ffd600', 'spark');
+      }
+      const t = f.life / f.max;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, t * 1.6));
+      ctx.fillStyle = '#ffd600';
+      ctx.font = '700 13px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#ffd600';
+      ctx.shadowBlur = 8;
+      ctx.fillText(f.text, f.x, f.y - (1 - t) * 26 - 18);
+      ctx.restore();
+      f.y -= 0.45;
+      f.life--;
+      if (f.life <= 0) list.splice(i, 1);
     }
   }
 
   drawDistricts() {
     const ctx = this.ctx;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = this.sim.width;
+    const h = this.sim.height;
     
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
     ctx.lineWidth = 1;
@@ -108,8 +149,8 @@ window.Renderer = class Renderer {
     ctx.lineWidth = 2;
     
     for (let portal of this.sim.portals) {
-      const isPartitioned = this.sim.settings.networkPartitionActive && 
-        ((portal.from.x < this.canvas.width / 2) !== (portal.to.x < this.canvas.width / 2));
+       const isPartitioned = this.sim.settings.networkPartitionActive &&
+        ((portal.from.x < this.sim.width / 2) !== (portal.to.x < this.sim.width / 2));
       
       // Infer a diagram link-type label from the endpoints' roles
       let label = null, labelColor = "rgba(0,242,254,0.9)";
@@ -161,8 +202,8 @@ window.Renderer = class Renderer {
 
   drawRift() {
     const ctx = this.ctx;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = this.sim.width;
+    const h = this.sim.height;
     
     // Jagged partition line down center
     ctx.strokeStyle = 'rgba(255, 23, 68, 0.7)';
