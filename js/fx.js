@@ -147,54 +147,6 @@ window.FX = (function () {
     bloom(w * 0.25, h * 0.30, Math.max(w, h) * 0.35, "rgba(20,60,110,0.25)");
     bloom(w * 0.78, h * 0.72, Math.max(w, h) * 0.30, "rgba(70,20,90,0.18)");
 
-    // ---- Metro City underlay (dim city blocks + lit windows + avenues) -----
-    // Drawn beneath stars/grid; kept ≤14% alpha so nodes & packets stay dominant.
-    // Blocks cluster around district centers so it reads as a city, not noise.
-    let cseed = 4242;
-    const rndCity = () => {
-      cseed = (cseed * 1103515245 + 12345) & 0x7fffffff;
-      return cseed / 0x7fffffff;
-    };
-    const districts = [];
-    const dCount = Math.max(4, Math.floor((w * h) / 90000));
-    for (let i = 0; i < dCount; i++) {
-      districts.push({ x: rndCity() * w, y: rndCity() * h });
-    }
-    for (const d of districts) {
-      const blocksHere = 3 + Math.floor(rndCity() * 4);
-      for (let i = 0; i < blocksHere; i++) {
-        const bw = 30 + rndCity() * 70;
-        const bh = 24 + rndCity() * 50;
-        const bx = d.x + (rndCity() - 0.5) * 220 - bw / 2;
-        const by = d.y + (rndCity() - 0.5) * 180 - bh / 2;
-        b.fillStyle = "rgba(0,60,90," + (0.05 + rndCity() * 0.08).toFixed(2) + ")";
-        b.fillRect(bx, by, bw, bh);
-        // Window dots
-        const cols = Math.floor(bw / 9);
-        const rows = Math.floor(bh / 9);
-        b.fillStyle = "rgba(255,214,0,0.09)";
-        for (let wx = 0; wx < cols; wx++) {
-          for (let wy = 0; wy < rows; wy++) {
-            if (rndCity() > 0.68) {
-              b.fillRect(bx + 4 + wx * 9, by + 4 + wy * 9, 2, 2);
-            }
-          }
-        }
-      }
-    }
-    // Avenues: a few brighter lines crossing between districts
-    const avenueCount = 3 + Math.floor(w / 400);
-    b.lineWidth = 2;
-    for (let i = 0; i < avenueCount; i++) {
-      const horiz = rndCity() > 0.5;
-      const pos = rndCity() * (horiz ? h : w);
-      b.strokeStyle = "rgba(0,242,254,0.07)";
-      b.beginPath();
-      if (horiz) { b.moveTo(0, pos); b.lineTo(w, pos); }
-      else { b.moveTo(pos, 0); b.lineTo(pos, h); }
-      b.stroke();
-    }
-
     // Deterministic star field (seeded so it stays stable across rebuilds)
     let seed = 1337;
     const rnd = () => {
