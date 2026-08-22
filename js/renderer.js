@@ -327,22 +327,22 @@ window.Renderer = class Renderer {
         ctx.fillText("FROZEN", node.x - 17, node.y + 32);
       }
       
-      // Draw Queue indicators (mini green/red dots representing messages)
-      const maxSlots = node.maxQueue;
-      const count = node.queue.length;
-      const dotRadius = 2.5;
-      const gap = 6;
-      const startX = node.x - ((maxSlots - 1) * gap) / 2;
-      
-      for (let s = 0; s < maxSlots; s++) {
+      // Queue indicator: segmented arc ring hugging the node body
+      // (capped at 12 visual segments; each segment = ceil(maxQueue/12) slots)
+      const segs = Math.min(12, node.maxQueue);
+      const per = Math.ceil(node.maxQueue / segs);
+      const fillRatio = node.queue.length / node.maxQueue;
+      for (let i = 0; i < segs; i++) {
+        const a0 = -Math.PI / 2 + (i / segs) * Math.PI * 2 + 0.07;
+        const a1 = -Math.PI / 2 + ((i + 1) / segs) * Math.PI * 2 - 0.07;
+        const filled = node.queue.length > i * per;
         ctx.beginPath();
-        ctx.arc(startX + s * gap, node.y - 28, dotRadius, 0, Math.PI * 2);
-        if (s < count) {
-          ctx.fillStyle = count > maxSlots - 2 ? '#ff1744' : '#00e676';
-        } else {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-        }
-        ctx.fill();
+        ctx.arc(node.x, node.y, 27, a0, a1);
+        ctx.strokeStyle = filled
+          ? (fillRatio > 0.8 ? '#ff1744' : fillRatio > 0.5 ? '#ffd600' : '#00e676')
+          : 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
       }
       
       // Text details
