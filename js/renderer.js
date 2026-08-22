@@ -168,6 +168,12 @@ window.Renderer = class Renderer {
       const key = portal.from.id + '>' + portal.to.id;
       const highlight = this._highlight && this._highlight.has(key);
       
+      // Latency badge (Phase G3): distance → ms at 15px/tick and 2ms/tick.
+      // A 600px reference hop reads as 80ms; ocean crossings read ~160ms+.
+      const ms = Math.round(Math.hypot(portal.to.x - portal.from.x, portal.to.y - portal.from.y) / 15 * 2);
+      const midX = (portal.from.x + portal.to.x) / 2;
+      const midY = (portal.from.y + portal.to.y) / 2;
+      
       if (window.FX) {
         window.FX.orthogonalLink(ctx, portal.from, portal.to, {
           partitioned: isPartitioned,
@@ -200,6 +206,20 @@ window.Renderer = class Renderer {
       ctx.strokeStyle = isPartitioned ? 'rgba(255, 23, 68, 0.2)' : 'rgba(0, 242, 254, 0.15)';
       ctx.lineWidth = 1;
       ctx.stroke();
+
+      // Latency badge at link midpoint
+      const txt = `${ms}ms`;
+      ctx.font = '700 9px Outfit, sans-serif';
+      const tw = ctx.measureText(txt).width;
+      ctx.fillStyle = 'rgba(5, 10, 18, 0.85)';
+      ctx.fillRect(midX - tw / 2 - 4, midY - 14, tw + 8, 13);
+      ctx.strokeStyle = isPartitioned ? 'rgba(255,23,68,0.6)' : 'rgba(0,242,254,0.35)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(midX - tw / 2 - 4, midY - 14, tw + 8, 13);
+      ctx.fillStyle = isPartitioned ? '#ff1744' : '#8af5ff';
+      ctx.textAlign = 'center';
+      ctx.fillText(txt, midX, midY - 4);
+      ctx.textAlign = 'left';
     }
   }
 

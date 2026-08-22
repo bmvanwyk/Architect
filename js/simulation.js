@@ -1300,7 +1300,13 @@ class Packet {
     
     this.state = 'in-transit'; // 'in-transit', 'sent-waiting-ack'
     this.progress = 0.0;
-    this.speed = 0.025; // 40 ticks trip
+    // Distance-based speed (Phase G3): absolute velocity ~15px/tick means a
+    // 600px reference hop = 40 ticks, a short hop arrives fast, an ocean
+    // crossing visibly crawls. Clamped so nothing stalls or teleports.
+    const ox = from ? from.x : (payload ? payload.x : to.x);
+    const oy = from ? from.y : (payload ? payload.y : to.y);
+    this.dist = Math.max(60, Math.hypot(to.x - ox, to.y - oy));
+    this.speed = Math.min(0.06, Math.max(0.008, 15 / this.dist));
     this.hasPassedLossCheck = false;
     
     this.ticksWaitingAck = 0;
