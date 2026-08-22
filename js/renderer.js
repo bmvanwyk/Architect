@@ -267,6 +267,39 @@ window.Renderer = class Renderer {
       ctx.fillStyle = '#f8f9fa';
       ctx.font = '700 8px Outfit';
       ctx.fillText(`SOS #${em.id}`, em.x - 14, em.y - 18);
+
+      // Origin glyph (Phase G2): what kind of place is calling?
+      const gx = em.x - 28, gy = em.y - 21;
+      ctx.save();
+      ctx.lineWidth = 1.5;
+      if (em.kind === 'shop') {
+        ctx.strokeStyle = '#ffd600';
+        ctx.strokeRect(gx - 3, gy, 7, 5);
+        ctx.beginPath();
+        ctx.moveTo(gx - 4, gy); ctx.lineTo(gx + 4, gy);
+        ctx.moveTo(gx - 2, gy); ctx.lineTo(gx - 2, gy - 3);
+        ctx.moveTo(gx + 1, gy); ctx.lineTo(gx + 1, gy - 3);
+        ctx.stroke();
+      } else if (em.kind === 'clinic') {
+        ctx.strokeStyle = '#00e676';
+        ctx.beginPath();
+        ctx.moveTo(gx, gy - 4); ctx.lineTo(gx, gy + 4);
+        ctx.moveTo(gx - 4, gy); ctx.lineTo(gx + 4, gy);
+        ctx.stroke();
+      } else if (em.kind === 'stadium') {
+        ctx.strokeStyle = '#bb86fc';
+        ctx.beginPath(); ctx.ellipse(gx, gy, 5, 3.5, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#bb86fc';
+        ctx.beginPath(); ctx.arc(gx, gy, 1.2, 0, Math.PI * 2); ctx.fill();
+      } else { // home (default)
+        ctx.strokeStyle = '#4facfe';
+        ctx.beginPath();
+        ctx.moveTo(gx - 4, gy - 0.5); ctx.lineTo(gx, gy - 4); ctx.lineTo(gx + 4, gy - 0.5);
+        ctx.moveTo(gx - 3, gy - 0.5); ctx.lineTo(gx - 3, gy + 4);
+        ctx.lineTo(gx + 3, gy + 4); ctx.lineTo(gx + 3, gy - 0.5);
+        ctx.stroke();
+      }
+      ctx.restore();
     }
   }
 

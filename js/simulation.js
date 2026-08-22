@@ -306,10 +306,23 @@ window.Simulation = class Simulation {
     const x = padding + Math.random() * (this.width - padding * 2);
     const y = padding + Math.random() * (this.height - padding * 2);
     
+    // Origin variety (Phase G2): each call comes from a distinct place type.
+    // Kinds only change flavor/visuals for now — SLO differences arrive in G4.
+    const kinds = [
+      { k: 'home',    w: 0.50 },
+      { k: 'shop',    w: 0.25 },
+      { k: 'clinic',  w: 0.15 },
+      { k: 'stadium', w: 0.10 }
+    ];
+    let roll = Math.random();
+    let kind = kinds[0].k;
+    for (const t of kinds) { roll -= t.w; if (roll <= 0) { kind = t.k; break; } }
+
     const emergency = {
       id: this.nextEmergencyId++,
       x,
       y,
+      kind,
       ticksActive: 0,
       maxLife: 800, // Ticks before failure
       state: 'pending' // 'pending', 'assigned', 'resolved'
