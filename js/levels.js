@@ -21,11 +21,18 @@ window.Levels = [
         return volts.some(v => v.level > 1);
       }}
     ],
+    slo: { latencyP99: 520, errorRate: 0.08, throughput: 2.5 },
+    // Flagship "Blackout" scenario: a Thundering Herd stampede tests the lone hero.
+    scenario: {
+      incidents: [
+        { t: 18, count: 8, label: "Thundering Herd stampede" },
+        { t: 38, count: 10, label: "Aftershock surge" }
+      ]
+    },
     setup: (sim) => {
-      // Pre-place Volt in the center of the canvas
-      const x = sim.width / 2;
-      const y = sim.height / 2;
-      sim.spawnNode('volt', x, y, { preplaced: true });
+      // Pre-place Volt in the center grid cell of the canvas
+      const s = sim.snapToGrid(sim.width / 2, sim.height / 2);
+      sim.spawnNode('volt', s.x, s.y, { preplaced: true });
       sim.credits = 600;
     },
     tick: (sim) => {
@@ -67,8 +74,9 @@ window.Levels = [
     },
     setup: (sim) => {
       sim.credits = 800;
-      // Pre-place Volt
-      sim.spawnNode('volt', sim.width / 3, sim.height / 2, { preplaced: true });
+      // Pre-place Volt (snapped to grid)
+      const s2 = sim.snapToGrid(sim.width / 3, sim.height / 2);
+      sim.spawnNode('volt', s2.x, s2.y, { preplaced: true });
     },
     tick: (sim) => {
       // Freeze Volt at tick 500 to demonstrate need for health checks
@@ -120,9 +128,11 @@ window.Levels = [
     },
     setup: (sim) => {
       sim.credits = 1000;
-      // Spawn Dispatcher in Center and Volt in a distant district
-      sim.spawnNode('dispatcher', sim.width / 3, sim.height / 2, { preplaced: true });
-      sim.spawnNode('volt', (sim.width * 3) / 4, sim.height / 2, { preplaced: true });
+      // Spawn Dispatcher in Center and Volt in a distant district (snapped to grid)
+      const sd = sim.snapToGrid(sim.width / 3, sim.height / 2);
+      sim.spawnNode('dispatcher', sd.x, sd.y, { preplaced: true });
+      const sv = sim.snapToGrid((sim.width * 3) / 4, sim.height / 2);
+      sim.spawnNode('volt', sv.x, sv.y, { preplaced: true });
       
       // Configure simulation-wide settings
       sim.settings.networkLossRate = 0.35; // 35% packet loss through the storm!
@@ -157,23 +167,24 @@ window.Levels = [
     ],
     setup: (sim) => {
       sim.credits = 1200;
-      // Pre-place Volt
-      sim.spawnNode('volt', sim.width / 2, sim.height / 3, { preplaced: true });
+      // Pre-place Volt (snapped to grid)
+      const s4 = sim.snapToGrid(sim.width / 2, sim.height / 3);
+      sim.spawnNode('volt', s4.x, s4.y, { preplaced: true });
       sim.log("ℹ️ SYSTEM BRIEFING: Speedsters write records to Primary database, but read civilian files from the closest Replica to save network time.", "info");
     },
     tick: (sim) => {}
   },
   {
     id: 5,
-    name: "The Dimensional Rift",
+    name: "The Severed Cable",
     tagline: "Network Partition & CAP Theorem",
-    desc: "A massive spatial rift splits the city! The East and West sectors are completely isolated (Network Partition). You must manage your databases under the CAP Theorem: choose either AP Mode (allow both sides to make updates, but risk split-brain inconsistency) or CP Mode (lock down nodes in the minority partition to guarantee data safety).",
+    desc: "A deep-sea anchor has severed the transatlantic backbone between us-east-1 and eu-west-1 — the regions are completely isolated (Network Partition). You must manage your databases under the CAP Theorem: choose either AP Mode (allow both sides to make updates, but risk split-brain inconsistency) or CP Mode (lock down nodes in the minority partition to guarantee data safety).",
     credits: 1500,
     allowedHeroes: ["volt", "mind-palace", "dispatcher"],
     spawnRate: 1200,
     spawnIntensity: 2,
     objectives: [
-      { id: "rift_survived", text: "Survive the 40-second Rift Partition", check: (sim) => sim.tickCount >= 1000 },
+      { id: "rift_survived", text: "Survive the 40-second cable outage", check: (sim) => sim.tickCount >= 1000 },
       { id: "choose_mode", text: "Select CAP strategy: choose AP (Availability) or CP (Consistency)", check: (sim) => sim.settings.capStrategy === 'AP' || sim.settings.capStrategy === 'CP' },
       { id: "resolve_calls", text: "Resolve at least 25 calls during the partition", check: (sim) => sim.stats.resolved >= 25 },
       { id: "verify_cap_consequences", text: "Maintain DB state without double-spend crashes (CP) OR resolve conflicts after heal (AP)", check: (sim) => {
@@ -187,41 +198,45 @@ window.Levels = [
     ],
     setup: (sim) => {
       sim.credits = 1500;
-      // Place two databases and two speedsters on left/right sides
-      const db1 = sim.spawnNode('mind-palace', sim.width / 4, sim.height / 3, { preplaced: true });
+      // Place two databases and two speedsters on left/right sides (snapped to grid)
+      const db1s = sim.snapToGrid(sim.width / 4, sim.height / 3);
+      const db1 = sim.spawnNode('mind-palace', db1s.x, db1s.y, { preplaced: true });
       db1.dbRole = 'primary';
       
-      const db2 = sim.spawnNode('mind-palace', (sim.width * 3) / 4, sim.height / 3, { preplaced: true });
+      const db2s = sim.snapToGrid((sim.width * 3) / 4, sim.height / 3);
+      const db2 = sim.spawnNode('mind-palace', db2s.x, db2s.y, { preplaced: true });
       db2.dbRole = 'replica';
       
-      sim.spawnNode('volt', sim.width / 4, (sim.height * 2) / 3, { preplaced: true });
-      sim.spawnNode('volt', (sim.width * 3) / 4, (sim.height * 2) / 3, { preplaced: true });
+      const v1s = sim.snapToGrid(sim.width / 4, (sim.height * 2) / 3);
+      sim.spawnNode('volt', v1s.x, v1s.y, { preplaced: true });
+      const v2s = sim.snapToGrid((sim.width * 3) / 4, (sim.height * 2) / 3);
+      sim.spawnNode('volt', v2s.x, v2s.y, { preplaced: true });
       
       // Establish initial connection portal
       sim.spawnPortal(db1, db2);
       
-      sim.log("⚡ RIFT ADVISORY: Spatial partition will activate at tick 300! Setup your strategy beforehand (Click on a Database node to select AP or CP strategy).", "warning");
+      sim.log("⚡ CABLE ADVISORY: The transatlantic backbone (us-east-1 ↔ eu-west-1) severs at tick 300! Pick your CAP strategy beforehand (Click a Database node to select AP or CP).", "warning");
     },
     tick: (sim) => {
       // Slice network partition at tick 300
       if (sim.tickCount === 300) {
         sim.settings.networkPartitionActive = true;
-        sim.log("🚨 DIMENSIONAL RIFT: The city is cut in half! Left side nodes cannot communicate with Right side nodes!", "danger");
+        sim.log("🚨 CABLE SEVERED: us-east-1 and eu-west-1 are isolated! Cross-Atlantic traffic is lost in the divide!", "danger");
       }
       
       // Heal at tick 850
       if (sim.tickCount === 850) {
         sim.settings.networkPartitionActive = false;
-        sim.log("✨ RIFT HEALED: Communication tunnels restored! Databases are synchronizing registries...", "success");
+        sim.log("✨ CABLE REPAIRED: The backbone is live again! Databases are synchronizing registries...", "success");
         sim.resolveDatabaseConflicts();
       }
     }
   },
   {
     id: 6,
-    name: "The Self-Repairing Fleet",
+    name: "The Global Fleet",
     tagline: "Containers & Automated Orchestration",
-    desc: "Meteor storms are hammering the city, randomly destroying hero stations! Doing manual re-deploys is impossible. You must deploy a **Clone Coordinator (Kubernetes Orchestrator)**, package Volt into a **Holographic Clone (Container)**, set the desired state to 4, and let the system auto-heal itself when nodes crash.",
+    desc: "Meteor storms are hammering every region, destroying hero stations worldwide! Manual re-deploys across continents are impossible. You must deploy a **Clone Coordinator (Kubernetes Orchestrator)**, package Volt into a **Holographic Clone (Container)**, set the desired state to 4, and let the system auto-heal itself when nodes crash — in any region.",
     credits: 1600,
     allowedHeroes: ["volt", "dispatcher", "coordinator"],
     spawnRate: 900,
@@ -239,9 +254,11 @@ window.Levels = [
       sim.credits = 1600;
       // Pre-place a Dispatcher + one Volt so the level doesn't panic out
       // before the player has time to deploy the Coordinator and configure clones.
-      sim.spawnNode('dispatcher', sim.width / 2, sim.height / 2, { preplaced: true });
-      sim.spawnNode('volt', sim.width / 3, sim.height / 2, { preplaced: true });
-      sim.log("☄️ METEOR DETECTED: Large rocks are falling! Deploy a Clone Coordinator, set its clone count to 4, and let it auto-heal. One Volt is already on duty — deploy reinforcements quickly!", "warning");
+      const sd6 = sim.snapToGrid(sim.width / 2, sim.height / 2);
+      sim.spawnNode('dispatcher', sd6.x, sd6.y, { preplaced: true });
+      const sv6 = sim.snapToGrid(sim.width / 3, sim.height / 2);
+      sim.spawnNode('volt', sv6.x, sv6.y, { preplaced: true });
+      sim.log("☄️ METEOR DETECTED: Rocks are falling across all regions! Deploy a Clone Coordinator, set its clone count to 4, and let it auto-heal globally. One Volt is already on duty — deploy reinforcements quickly!", "warning");
     },
     tick: (sim) => {
       // Trigger random meteor strikes (every ~3 seconds so the coordinator
