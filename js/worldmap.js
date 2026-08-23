@@ -37,12 +37,15 @@ window.WorldMap = (function () {
     ]
   ];
 
-  // Active deployment regions (normalized bounds). Later phases unlock more.
+  // Deployment regions (normalized bounds). Zones foreshadow themselves when
+  // locked so players see the campaign's global arc coming (Phase G5).
   const REGIONS = [
-    { id: 'us-east-1', x0: 0.150, y0: 0.135, x1: 0.235, y1: 0.310 }
+    { id: 'us-east-1', x0: 0.150, y0: 0.135, x1: 0.235, y1: 0.310, minLevel: 1 },
+    { id: 'eu-west-1', x0: 0.430, y0: 0.095, x1: 0.565, y1: 0.235, minLevel: 4 }
   ];
 
-  function drawWorldMap(ctx, w, h) {
+  function drawWorldMap(ctx, w, h, currentLevelId) {
+    const lvl = currentLevelId || 1;
     ctx.save();
 
     // Landmasses: muted teal fill + faint neon coastline
@@ -64,17 +67,31 @@ window.WorldMap = (function () {
     for (const r of REGIONS) {
       const x = r.x0 * w, y = r.y0 * h;
       const rw = (r.x1 - r.x0) * w, rh = (r.y1 - r.y0) * h;
-      ctx.fillStyle = 'rgba(0, 242, 254, 0.045)';
-      ctx.fillRect(x, y, rw, rh);
-      ctx.setLineDash([6, 6]);
-      ctx.strokeStyle = 'rgba(0, 242, 254, 0.28)';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(x, y, rw, rh);
-      ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(0, 242, 254, 0.55)';
-      ctx.font = '700 11px Outfit, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(r.id, x + 6, y - 6);
+      const unlocked = lvl >= (r.minLevel || 1);
+      if (unlocked) {
+        ctx.fillStyle = 'rgba(0, 242, 254, 0.045)';
+        ctx.fillRect(x, y, rw, rh);
+        ctx.setLineDash([6, 6]);
+        ctx.strokeStyle = 'rgba(0, 242, 254, 0.28)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x, y, rw, rh);
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(0, 242, 254, 0.55)';
+        ctx.font = '700 11px Outfit, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(r.id, x + 6, y - 6);
+      } else {
+        // Foreshadow: locked future region stays ghosted
+        ctx.setLineDash([3, 7]);
+        ctx.strokeStyle = 'rgba(136, 146, 176, 0.22)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, rw, rh);
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(136, 146, 176, 0.40)';
+        ctx.font = '700 11px Outfit, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('🔒 ' + r.id, x + 6, y - 6);
+      }
     }
 
     ctx.restore();

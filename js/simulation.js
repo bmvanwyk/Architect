@@ -796,6 +796,16 @@ window.Simulation = class Simulation {
     if (dispatcher.routingPolicy === 'round-robin') {
       target = speedsters[dispatcher.lastRoutedIndex % speedsters.length];
       dispatcher.lastRoutedIndex++;
+    } else if (dispatcher.routingPolicy === 'nearest') {
+      // Latency-based routing (Phase G5): send each call to the closest
+      // active speedster by distance — the GeoDNS / latency-routing lesson.
+      const ox = request.payload ? request.payload.x : dispatcher.x;
+      const oy = request.payload ? request.payload.y : dispatcher.y;
+      let bestD = Infinity;
+      for (const s of speedsters) {
+        const d = Math.hypot(s.x - ox, s.y - oy);
+        if (d < bestD) { bestD = d; target = s; }
+      }
     } else {
       // Least Connections routing
       target = speedsters[0];

@@ -559,6 +559,7 @@ window.UI = class UI {
             <select id="sel-routing">
               <option value="round-robin" ${routing === 'round-robin' ? 'selected' : ''}>Round Robin</option>
               <option value="least-connections" ${routing === 'least-connections' ? 'selected' : ''}>Least Connections</option>
+              <option value="nearest" ${routing === 'nearest' ? 'selected' : ''}>Nearest Region (Latency)</option>
             </select>
           </span>
         </div>

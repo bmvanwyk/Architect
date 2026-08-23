@@ -45,7 +45,7 @@ window.Renderer = class Renderer {
     this.dashOffset -= 0.25;
 
     // 0a. Geo world-map underlay (world space, Phase G)
-    if (window.FX && window.WorldMap) window.WorldMap.drawWorldMap(ctx, this.sim.width, this.sim.height);
+    if (window.FX && window.WorldMap) window.WorldMap.drawWorldMap(ctx, this.sim.width, this.sim.height, this.sim.currentLevelId);
 
     // Build route-highlight set from in-transit packets (for connector glow)
     this._highlight = new Set();
