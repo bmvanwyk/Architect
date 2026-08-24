@@ -746,6 +746,45 @@ body {
   transform: none;
 }
 
+/* Camera controls (Phase C) */
+.cam-btn {
+  background: rgba(10, 14, 23, 0.7);
+  border: 1px solid var(--border-glow);
+  color: var(--primary);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-title);
+  padding: 4px 9px;
+  transition: var(--transition-smooth);
+}
+.cam-btn:hover { box-shadow: var(--primary-glow); }
+
+/* Collapsible side panels (Phase C) */
+.panel-collapse {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--muted);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 8px;
+}
+.panel-collapse:hover { color: var(--primary); border-color: var(--border-glow); }
+.main-layout.left-collapsed .left-panel .panel-body,
+.main-layout.left-collapsed .left-panel .level-selector-container,
+.main-layout.left-collapsed .left-panel .objective-box,
+.main-layout.left-collapsed .left-panel .narrative-text,
+.main-layout.left-collapsed .left-panel .game-controls,
+.main-layout.left-collapsed .left-panel .briefing-text,
+.main-layout.left-collapsed .left-panel h3,
+.main-layout.left-collapsed .left-panel .objective-box h4 { display: none; }
+.main-layout.left-collapsed { grid-template-columns: 42px 4px 1fr 4px var(--right-w, 380px); }
+.main-layout.right-collapsed .right-panel .tab-content,
+.main-layout.right-collapsed .right-panel .tab-header,
+.main-layout.right-collapsed .right-panel .section-title { display: none; }
+.main-layout.right-collapsed { grid-template-columns: var(--left-w, 310px) 4px 1fr 4px 42px; }
+
 /* Telemetry Grid */
 .metrics-grid {
   display: grid;

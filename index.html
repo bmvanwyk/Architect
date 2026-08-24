@@ -32,6 +32,14 @@
           </div>
           <span class="stat-value text-red" id="stat-panic">0%</span>
         </div>
+        <div class="header-stat-box">
+          <span class="stat-label">CITY TRUST</span>
+          <span class="stat-value text-green" id="stat-trust">100%</span>
+        </div>
+        <div class="header-stat-box">
+          <span class="stat-label">DROPPED</span>
+          <span class="stat-value text-red" id="stat-dropped">0</span>
+        </div>
       </div>
       <div class="header-controls">
         <button id="btn-audio" class="btn-audio" title="Toggle Music & SFX">
@@ -50,6 +58,7 @@
       <aside class="panel left-panel">
         <div class="panel-header">
           <h2>🗂️ MISSION SELECTOR</h2>
+          <button id="btn-collapse-left" class="panel-collapse" title="Collapse panel">‹</button>
         </div>
         <div class="level-selector-container">
           <select id="level-select">
@@ -100,6 +109,9 @@
           <div class="canvas-tools">
             <button id="tool-select" class="tool-btn active" title="Select / Upgrade Hero">🔍 Select</button>
             <button id="tool-wire" class="tool-btn" title="Create Portal Link between towers">🌀 Link Portal</button>
+            <button id="cam-zoom-out" class="cam-btn" title="Zoom out">－</button>
+            <button id="cam-zoom-in" class="cam-btn" title="Zoom in">＋</button>
+            <button id="cam-reset" class="cam-btn" title="Reset view (F)">⤢ FIT</button>
           </div>
         </div>
         <div class="canvas-wrapper">

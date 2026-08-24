@@ -191,6 +191,51 @@ window.UI = class UI {
     });
     this.dom.canvas.addEventListener('mouseleave', () => { this.sim.hoverCell = null; this.sim.hoverNode = null; });
 
+    // Keyboard shortcuts (Phase C): 1-5 deploy, U upgrade, Space pause, F fit, Esc cancel
+    document.addEventListener('keydown', (e) => {
+      if (e.target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      const heroMap = { '1': 'volt', '2': 'dispatcher', '3': 'mind-palace', '4': 'cache', '5': 'coordinator' };
+      if (heroMap[e.key]) {
+        if (this.sim.levelConfig.allowedHeroes.includes(heroMap[e.key])) this.selectHeroForDeployment(heroMap[e.key]);
+      } else if (e.key === 'u' || e.key === 'U') {
+        if (this.selectedNode) {
+          const btn = document.getElementById('btn-upgrade-node');
+          if (btn && !btn.disabled) btn.click();
+        }
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        if (this.sim.isPlaying) this.app.pauseSimulation(); else this.app.startSimulation();
+      } else if (e.key === 'f' || e.key === 'F') {
+        this.app.camera.resetView(this.dom.canvas.width, this.dom.canvas.height);
+      } else if (e.key === 'Escape') {
+        if (this.selectedTool === 'deploy') this.setTool('select');
+        else { this.selectedNode = null; this.updateInspector(); }
+      }
+    });
+
+    // Collapsible panels (Phase C): toggle inline grid columns (resizer owns them)
+    const layout = this.dom.mainLayout || document.querySelector('.main-layout');
+    const btnL = document.getElementById('btn-collapse-left');
+    if (btnL && layout) {
+      btnL.addEventListener('click', () => {
+        const collapsed = layout.classList.toggle('left-collapsed');
+        btnL.textContent = collapsed ? '›' : '‹';
+        layout.style.gridTemplateColumns = collapsed
+          ? '42px 4px 1fr 4px var(--right-w, 380px)'
+          : `${this.leftPanelWidth}px 4px 1fr 4px ${this.rightPanelWidth}px`;
+        this.app.renderer.resize();
+      });
+    }
+
+    // Camera controls (Phase C): zoom ± and fit
+    const camZoomIn = document.getElementById('cam-zoom-in');
+    const camZoomOut = document.getElementById('cam-zoom-out');
+    const camReset = document.getElementById('cam-reset');
+    const cw = this.dom.canvas;
+    if (camZoomIn) camZoomIn.addEventListener('click', () => this.app.camera.zoomAt(cw.width / 2, cw.height / 2, 1, cw.width, cw.height));
+    if (camZoomOut) camZoomOut.addEventListener('click', () => this.app.camera.zoomAt(cw.width / 2, cw.height / 2, -1, cw.width, cw.height));
+    if (camReset) camReset.addEventListener('click', () => this.app.camera.resetView(cw.width, cw.height));
+
     // 6. Win Screen overlay action
     this.dom.overlayAction.addEventListener('click', () => {
       this.dom.overlay.classList.add('hidden');
@@ -408,6 +453,16 @@ window.UI = class UI {
     } else {
       this.dom.panicText.className = "stat-value text-green";
     }
+
+    // Always-on status strip (Phase C): Trust + Dropped
+    const statTrust = document.getElementById('stat-trust');
+    const statDropped = document.getElementById('stat-dropped');
+    if (statTrust) {
+      const trust = 100 - Math.round(this.sim.panic);
+      statTrust.innerText = `${trust}%`;
+      statTrust.className = 'stat-value ' + (trust > 60 ? 'text-green' : trust > 30 ? 'text-gold' : 'text-red');
+    }
+    if (statDropped) statDropped.innerText = `${this.sim.stats.failed}`;
 
     // Danger vignette on the game field: fades in above 30% panic
     const pv = document.getElementById('panic-vignette');
@@ -771,7 +826,10 @@ window.UI = class UI {
   showSuccessScreen() {
     this.unlockNextLevel(this.sim.currentLevelId);
     this.dom.overlayTitle.innerText = "MISSION SUCCESS! 🎉";
-    this.dom.overlayText.innerText = `Great job Architect! You successfully built a resilient, self-healing system and solved Level ${this.sim.currentLevelId}. Ready for the next architectural challenge?`;
+    const learn = this.sim.levelConfig.learn || '';
+    this.dom.overlayText.innerHTML = `Great job Architect! You solved Level ${this.sim.currentLevelId}.` +
+      (learn ? `<br><br><span style="color:var(--primary);">📚 WHAT YOU LEARNED:</span><br>${learn}` : '') +
+      `<br><br>Ready for the next architectural challenge?`;
     this.dom.overlayAction.innerText = "NEXT LEVEL ▶";
     this.dom.overlay.classList.remove('hidden');
     if (this.app.audio) this.app.audio.sfxSuccess();
