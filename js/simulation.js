@@ -378,15 +378,28 @@ window.Simulation = class Simulation {
     }
     
     const node = new Node(this.nextNodeId++, type, x, y, options);
+    node.cost = options.preplaced ? 0 : cost; // refund basis (preplaced are free)
     this.nodes.push(node);
     
     this.log(`🛠️ DEPLOYED: ${node.name} at coordinate (${Math.round(x)}, ${Math.round(y)})`, "info");
     return node;
   }
 
+  // Decommission a player-deployed node: remove it, its portals, and refund
+  // 50% of its cost. Pre-placed heroes are permanent (they anchor the level).
+  decommissionNode(id) {
+    const idx = this.nodes.findIndex(n => n.id === id);
+    if (idx === -1) return false;
+    const node = this.nodes[idx];
+    if (node.preplaced) return false;
+    this.portals = this.portals.filter(p => p.from !== node && p.to !== node);
+    this.credits += Math.floor((node.cost || 0) * 0.5);
+    this.nodes.splice(idx, 1);
+    return true;
+  }
+
   spawnPortal(nodeA, nodeB) {
-    if (nodeA === nodeB) return null;
-    // Check if portal already exists
+    if (nodeA === nodeB) return null;    // Check if portal already exists
     const exists = this.portals.some(p => (p.from === nodeA && p.to === nodeB) || (p.from === nodeB && p.to === nodeA));
     if (exists) return null;
     

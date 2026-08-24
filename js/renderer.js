@@ -326,6 +326,31 @@ window.Renderer = class Renderer {
   drawNodes() {
     const ctx = this.ctx;
     
+    // Hover affordance ring (Phase B): shows a node is grabbable
+    if (this.sim.hoverNode && this.sim.hoverNode.status === 'active') {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.45)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(this.sim.hoverNode.x, this.sim.hoverNode.y, 26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Selection ring (Phase B): bold glowing halo on the selected node
+    if (this.app && this.app.ui && this.app.ui.selectedNode && this.app.ui.selectedNode.status === 'active') {
+      const n = this.app.ui.selectedNode;
+      ctx.save();
+      ctx.strokeStyle = '#00f2fe';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(0, 242, 254, 0.8)';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 29, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     for (let node of this.sim.nodes) {
       if (node.status !== 'active') continue;
       
@@ -407,6 +432,19 @@ window.Renderer = class Renderer {
       const label = `${node.name} L${node.level}`;
       const labelWidth = ctx.measureText(label).width;
       ctx.fillText(label, node.x - labelWidth / 2, node.y + 36);
+
+      // Upgrade payoff pulse (Phase B): expanding gold ring
+      if (node._upgradePulse > 0) {
+        const r = 24 + (18 - node._upgradePulse) * 2.2;
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 214, 0, ${node._upgradePulse / 18})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        node._upgradePulse--;
+      }
       
       // Database specific replica lag / database roles text
       if (node.type === 'mind-palace') {

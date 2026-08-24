@@ -180,13 +180,16 @@ window.UI = class UI {
     this.dom.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
     this.dom.canvas.addEventListener('mousedown', (e) => this.onPanStart(e));
 
-    // Hover highlight for the deployment grid (world-space)
+    // Hover highlight for the deployment grid + node grab affordance (world-space)
     this.dom.canvas.addEventListener('mousemove', (e) => {
       if (this._panActive) return;
       const w = this.toWorld(e);
       this.sim.hoverCell = this.sim.snapToGrid(w.x, w.y);
+      this.sim.hoverNode = this.sim.nodes.find(n =>
+        Math.hypot(n.x - w.x, n.y - w.y) < 28 && n.status === 'active') || null;
+      this.dom.canvas.style.cursor = (this.selectedTool === 'select' && this.sim.hoverNode) ? 'pointer' : this.dom.canvas.style.cursor === 'crosshair' ? 'crosshair' : '';
     });
-    this.dom.canvas.addEventListener('mouseleave', () => { this.sim.hoverCell = null; });
+    this.dom.canvas.addEventListener('mouseleave', () => { this.sim.hoverCell = null; this.sim.hoverNode = null; });
 
     // 6. Win Screen overlay action
     this.dom.overlayAction.addEventListener('click', () => {
@@ -309,7 +312,7 @@ window.UI = class UI {
     const x = w.x;
     const y = w.y;
     
-    const clickedNode = this.sim.nodes.find(n => Math.hypot(n.x - x, n.y - y) < 22 && n.status === 'active');
+      const clickedNode = this.sim.nodes.find(n => Math.hypot(n.x - x, n.y - y) < 28 && n.status === 'active');
     
     if (this.selectedTool === 'deploy') {
       if (clickedNode) {
@@ -636,6 +639,7 @@ window.UI = class UI {
             <span>UPGRADE COMPONENT</span>
             <span style="font-weight:bold;">${costText}</span>
           </button>
+          ${node.preplaced ? '' : `<button id="btn-decommission" class="btn btn-secondary" style="margin-top:8px; width:100%;">🗑️ DECOMMISSION (50% refund)</button>`}
         </div>
       </div>
     `;
@@ -653,12 +657,26 @@ window.UI = class UI {
     if (btnUpgrade) {
       btnUpgrade.addEventListener('click', () => {
         if (node.upgrade(this.sim)) {
+          node._upgradePulse = 18;
+          if (this.app.audio) this.app.audio.sfxUpgrade();
           this.sim.log(`🚀 UPGRADED: ${node.name} upgraded to Level ${node.level}!`, "success");
           this.updateInspector();
         }
       });
     }
     
+    // Decommission button (player-deployed nodes only)
+    const btnDec = document.getElementById('btn-decommission');
+    if (btnDec) {
+      btnDec.addEventListener('click', () => {
+        if (this.sim.decommissionNode(node.id)) {
+          this.selectedNode = null;
+          this.sim.log(`🗑️ DECOMMISSIONED: ${node.name} removed from the grid (50% refund).`, "system-msg");
+          this.updateInspector();
+        }
+      });
+    }
+
     // Volt specific checkbox
     const chkDedup = document.getElementById('chk-dedup');
     if (chkDedup) {

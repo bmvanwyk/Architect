@@ -188,6 +188,10 @@ window.AudioManager = class AudioManager {
   sfxGameOver() { this._initCtx(); this._playSfxGameOver(); }
   /** Played when a packet is spawned */
   sfxPacket()   { this._initCtx(); this._playSfxTick(); }
+  /** Alarm sting — a failure entity strikes the city (partition / surge) */
+  sfxBreach()   { this._initCtx(); this._playSfxBreach(); }
+  /** Rising triad — a component was upgraded (Phase B payoff) */
+  sfxUpgrade()  { this._initCtx(); this._playSfxUpgrade(); }
 
   // ══════════════════════════════════════════════════════════════
   //  SEQUENCER CORE
@@ -477,6 +481,24 @@ window.AudioManager = class AudioManager {
   // ══════════════════════════════════════════════════════════════
 
   /** Rising "power-up" tone — node deployed */
+  _playSfxUpgrade() {
+    const ctx = this._ctx;
+    const t   = ctx.currentTime;
+    // Fast rising triad arpeggio: C5 → E5 → G5, bright triangle voices
+    [523.25, 659.25, 783.99].forEach((freq, i) => {
+      const start = t + i * 0.07;
+      const osc = ctx.createOscillator();
+      const env = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+      env.gain.setValueAtTime(0.0001, start);
+      env.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+      env.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
+      osc.connect(env).connect(this._sfxGain);
+      osc.start(start); osc.stop(start + 0.25);
+    });
+  }
+
   _playSfxDeploy() {
     const ctx = this._ctx;
     const t   = ctx.currentTime;
@@ -574,5 +596,34 @@ window.AudioManager = class AudioManager {
     env.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
     osc.connect(env); env.connect(this._sfxGain);
     osc.start(t); osc.stop(t + 0.04);
+  }
+
+  /** Alarm sting for a city breach (failure injection) */
+  _playSfxBreach() {
+    const ctx = this._ctx;
+    const t   = ctx.currentTime;
+    // Descending two-tone alarm
+    [440, 330].forEach((freq, i) => {
+      const osc  = ctx.createOscillator();
+      const env  = ctx.createGain();
+      osc.type   = 'sawtooth';
+      osc.frequency.value = freq;
+      const at   = t + i * 0.12;
+      env.gain.setValueAtTime(0.0001, at);
+      env.gain.exponentialRampToValueAtTime(0.3, at + 0.02);
+      env.gain.exponentialRampToValueAtTime(0.001, at + 0.18);
+      osc.connect(env); env.connect(this._sfxGain);
+      osc.start(at); osc.stop(at + 0.2);
+    });
+    // Noise burst
+    const dur = 0.2;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const d   = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const bp  = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 600; bp.Q.value = 0.8;
+    const g   = ctx.createGain(); g.gain.setValueAtTime(0.4, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(bp); bp.connect(g); g.connect(this._sfxGain);
+    src.start(t);
   }
 };
