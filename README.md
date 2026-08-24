@@ -90,17 +90,17 @@ Every rescue needs to be written to a database ledger. Volt writes to the Primar
 
 ![Level 4 - Shared File Room](docs/screenshots/level-4.png)
 
-### Mission 5: The Dimensional Rift — *CAP Theorem*
+### Mission 5: The Severed Cable — *CAP Theorem*
 
-A spatial rift cuts the city in two. In **AP Mode** players accept updates in both halves and resolve conflicts after heal. In **CP Mode** databases in the minority partition lock down writes.
+A deep-sea anchor severs the transatlantic backbone between `us-east-1` and `eu-west-1`. In **AP Mode** players accept updates in both regions and resolve conflicts after the cable is repaired. In **CP Mode** databases in the minority partition lock down writes.
 
-![Level 5 - Dimensional Rift](docs/screenshots/level-5.png)
+![Level 5 - Severed Cable](docs/screenshots/level-5.png)
 
-### Mission 6: The Self-Repairing Fleet — *Kubernetes*
+### Mission 6: The Global Fleet — *Kubernetes*
 
-Meteor showers randomly smash speedsters. Players deploy a Clone Coordinator, set a desired state of 4 clones, and watch the system automatically self-heal when nodes are destroyed.
+Meteor storms smash speedsters in every region. Players deploy a Clone Coordinator, set a desired state of 4 clones, and watch the system automatically self-heal when nodes are destroyed — anywhere on the map.
 
-![Level 6 - Self-Repairing Fleet](docs/screenshots/level-6.png)
+![Level 6 - Global Fleet](docs/screenshots/level-6.png)
 
 ---
 
@@ -153,7 +153,8 @@ For engineers or curious students who want to look under the hood, the game is w
 | **`js/renderer.js`** | 341 lines | Canvas vector drawing: animated packets, laser links, meteor shockwaves (visual polish delegated to `fx.js`) |
 | **`js/fx.js`** | ~260 lines | Presentation-only effects: starfield background, deployment grid, diagram node shapes, orthogonal connectors, particle trails/sparks |
 | **`js/topology.js`** | ~190 lines | Read-only graph engine over portals/nodes: pathing, role queries, blueprint validation; routing + Architecture checklist consume it |
-| **`js/camera.js`** | ~90 lines | Viewport pan/zoom transform (world↔screen) + screen-shake juice; never mutates sim |
+| **`js/camera.js`** | ~110 lines | Viewport pan/zoom transform (world↔screen) + screen-shake juice; never mutates sim |
+| **`js/worldmap.js`** | ~100 lines | Geo layer: stylized continent polygons, region zones with level-gated unlocks (`us-east-1`, `eu-west-1`) |
 | **`js/content.js`** | ~90 lines | Scenario DSL loader/validator — turns data scenarios into the sim timeline |
 | **`js/story.js`** | ~40 lines | Per-level narrative hooks + failure-entity bestiary (lore, no logic) |
 | **`js/hud.js`** | ~60 lines | Telemetry dashboard: latency p95, error rate, queue depth, city Trust, SLO pills |
