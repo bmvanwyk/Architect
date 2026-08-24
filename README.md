@@ -152,12 +152,20 @@ For engineers or curious students who want to look under the hood, the game is w
 | **`js/simulation.js`** | 1140 lines | Tick-rate physics engine: queues, packet routing, DB sync, CAP merge, cloning |
 | **`js/renderer.js`** | 341 lines | Canvas vector drawing: animated packets, laser links, meteor shockwaves (visual polish delegated to `fx.js`) |
 | **`js/fx.js`** | ~260 lines | Presentation-only effects: starfield background, deployment grid, diagram node shapes, orthogonal connectors, particle trails/sparks |
-| **`js/topology.js`** | ~170 lines | Read-only graph engine over portals/nodes: pathing, role queries, blueprint validation; routing + Architecture checklist consume it |
-| **`js/ui.js`** | 828 lines | Tab selectors, click-to-deploy (snap-to-grid), inspector, panel resizers, tutorial wizard, save/load |
+| **`js/topology.js`** | ~190 lines | Read-only graph engine over portals/nodes: pathing, role queries, blueprint validation; routing + Architecture checklist consume it |
+| **`js/camera.js`** | ~90 lines | Viewport pan/zoom transform (world↔screen) + screen-shake juice; never mutates sim |
+| **`js/content.js`** | ~90 lines | Scenario DSL loader/validator — turns data scenarios into the sim timeline |
+| **`js/story.js`** | ~40 lines | Per-level narrative hooks + failure-entity bestiary (lore, no logic) |
+| **`js/hud.js`** | ~60 lines | Telemetry dashboard: latency p95, error rate, queue depth, city Trust, SLO pills |
+| **`js/ui.js`** | ~900 lines | Tab selectors, click-to-deploy (snap-to-grid), camera input, inspector, panel resizers, tutorial wizard, save/load |
 | **`js/app.js`** | 94 lines | Bootstraps the components, wires callbacks, starts the requestAnimationFrame game loop |
 | **`js/audio.js`** | 578 lines | Procedural synthwave music + SFX via Web Audio API; panic-level morphs BPM and tone |
 
 For a deeper dive into the tick engine, packet lifecycle, audio synth, and all Mermaid diagrams, see **[docs/architecture.md](docs/architecture.md)**.
+
+## 🧭 World-Class Build
+
+We are evolving Super-Architects into a world-class, browser-based distributed-systems **strategy/simulation** game: defend Metro City by designing resilient architectures against personified failure entities (Latency Wraith, Partition Rift, Thundering Herd, Poison Pill, Cascade). The loop is **Observe → Design → Deploy → Survive → Diagnose → Optimize**, backed by a faithful sim and a data-driven scenario engine. Zero-build, zero-dependency, vanilla JS — modularized into `camera`, `content`, `story`, `hud`, plus the simulation/topology core. Full design + phased roadmap: **[docs/superpowers/specs/2026-08-21-world-class-design.md](docs/superpowers/specs/2026-08-21-world-class-design.md)**.
 
 ---
 

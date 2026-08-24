@@ -46,10 +46,14 @@ Use `timeout 30 node -e "..."` for quick checks; `timeout 120` for full-level te
 | `renderer.js` | Canvas 2D draw calls only (delegates visual polish to `FX`) | Game state mutation, event handling |
 | `fx.js` | Presentation-only effects (starfield bg, grid, diagram node shapes, orthogonal connectors, particle trails/sparks); called by `renderer.js` | Never mutates simulation state; no game logic |
 | `topology.js` | Read-only graph engine over `sim.portals`/`sim.nodes`: path, nodesByRole, reachable, entryNodeFor, bestTarget, blueprint validation (`satisfies`) | Never mutates sim; no rendering |
-| `ui.js` | DOM binding, inspector, telemetry, tutorial, save/load, deployment | Simulation logic, canvas drawing |
-| `app.js` | Bootstrap, game loop, component wiring | No business logic |
-| `levels.js` | Level configs (plain objects) | No logic — only `setup`, `tick`, and objective `check` closures |
-| `audio.js` | All Web Audio API code | Never call without user-gesture guard |
+| `ui.js` | DOM binding, inspector, telemetry, tutorial, save/load, deployment, camera input | Simulation logic, canvas drawing |
+| `app.js` | Bootstrap, game loop, component wiring, breach→shake/alarm hook | No business logic |
+| `levels.js` | Level configs (plain objects); may include `scenario`, `slo`, `narrative` | No logic — only `setup`, `tick`, and objective `check` closures |
+| `audio.js` | All Web Audio API code (procedural music morphs with panic; `sfxBreach` alarm) | Never call without user-gesture guard |
+| `camera.js` | Viewport pan/zoom transform (world↔screen); `shake()` for juice | Never mutates sim state |
+| `content.js` | Scenario DSL loader/validator (`applyScenario`) — turns a plain-data scenario into a sim timeline | No rendering, no game logic beyond timeline setup |
+| `story.js` | Narrative/lore content (per-level briefing hooks, failure-entity bestiary) | No logic |
+| `hud.js` | Telemetry dashboard rendering (latency p95, error rate, queue depth, city Trust, SLO pills) | No game-state mutation |
 
 ## Key design rules
 
@@ -76,6 +80,10 @@ Use `timeout 30 node -e "..."` for quick checks; `timeout 120` for full-level te
 9. **Every level must be verified winnable** with a reasonable player strategy. Run the full-level test above before landing a level change.
 
 10. **Objective `check` closures run every tick.** Avoid O(n²) scans inside checks where possible; use the stats accumulators.
+
+11. **Scenarios are data, not code.** Prefer attaching a `scenario` (incidents/failures timeline) + `slo` + `narrative` to a level over hard-coding events in `level.tick`. `content.applyScenario` turns the data into `sim._scenarioEvents` consumed by `fireScenarioEvent`. Add new failure kinds there, never in a level `tick`.
+
+12. **Telemetry is computed once per tick in `updateDerivedMetrics()`** into `sim.stats` (`latencySamples`/`latencyP50/95/99`, `queueDepth`, `errorRate`, `cityTrust`). HUD/SLO checks read these accumulators; do not re-scan nodes for aggregate stats.
 
 ### UI (`ui.js`)
 
