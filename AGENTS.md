@@ -2,7 +2,7 @@
 
 ## Project type
 
-This is a zero-dependency, zero-build, single-page browser game. There is **no package.json**, no bundler, no framework. All JS files communicate through the `window` namespace and are loaded via plain `<script>` tags in `index.html`.
+This is a zero-build, single-page browser game. The **runtime is still zero-dependency at page load**: all JS files communicate through the `window` namespace and are loaded via plain `<script>` tags in `index.html`. However, the repo root now contains a **package.json** with puppeteer as a dev dependency for the headless verification test script. There is no bundler, no framework.
 
 ## How to verify your changes
 
